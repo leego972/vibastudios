@@ -295,7 +295,7 @@ export default function SoundEffects() {
         <div className="container py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setLocation(`/project/${projectId}`)}>
+              <Button variant="ghost" size="icon" onClick={() => setLocation(`/projects/${projectId}`)}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>

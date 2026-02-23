@@ -66,7 +66,7 @@ export default function Storyboard() {
       <div className="border-b bg-card/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(`/project/${projectId}`)}>
+            <Button variant="ghost" size="icon" onClick={() => navigate(`/projects/${projectId}`)}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
@@ -106,7 +106,7 @@ export default function Storyboard() {
           <div className="flex flex-col items-center py-20 text-center">
             <Grid3X3 className="h-12 w-12 text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground">No scenes yet. Add scenes in the Scene Editor first.</p>
-            <Button className="mt-4" size="sm" onClick={() => navigate(`/project/${projectId}/scenes`)}>
+            <Button className="mt-4" size="sm" onClick={() => navigate(`/projects/${projectId}/scenes`)}>
               Go to Scene Editor
             </Button>
           </div>
@@ -114,7 +114,7 @@ export default function Storyboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {scenes.map((scene, idx) => (
               <Card key={scene.id} className="overflow-hidden group hover:ring-1 hover:ring-primary/30 transition-all cursor-pointer"
-                onClick={() => navigate(`/project/${projectId}/scenes`)}>
+                onClick={() => navigate(`/projects/${projectId}/scenes`)}>
                 {/* Thumbnail */}
                 <div className="aspect-video bg-muted relative overflow-hidden">
                   {scene.thumbnailUrl ? (
@@ -185,7 +185,7 @@ export default function Storyboard() {
             {scenes.map((scene, idx) => (
               <div key={scene.id}>
                 <div className="flex gap-4 p-3 rounded-lg border bg-card/50 hover:ring-1 hover:ring-primary/30 transition-all cursor-pointer"
-                  onClick={() => navigate(`/project/${projectId}/scenes`)}>
+                  onClick={() => navigate(`/projects/${projectId}/scenes`)}>
                   {/* Thumbnail */}
                   <div className="w-40 h-24 rounded-md overflow-hidden bg-muted shrink-0">
                     {scene.thumbnailUrl ? (

@@ -30,12 +30,12 @@ function Router() {
   return (
     <Switch>
       {/* Full-screen pages (own layout) */}
-      <Route path="/project/:projectId/script/:scriptId" component={ScriptWriter} />
-      <Route path="/project/:projectId/storyboard" component={Storyboard} />
-      <Route path="/project/:projectId/credits" component={CreditsEditor} />
-      <Route path="/project/:projectId/shot-list" component={ShotList} />
-      <Route path="/project/:projectId/continuity" component={ContinuityCheck} />
-      <Route path="/project/:projectId/color-grading" component={ColorGrading} />
+      <Route path="/projects/:projectId/script/:scriptId" component={ScriptWriter} />
+      <Route path="/projects/:projectId/storyboard" component={Storyboard} />
+      <Route path="/projects/:projectId/credits" component={CreditsEditor} />
+      <Route path="/projects/:projectId/shot-list" component={ShotList} />
+      <Route path="/projects/:projectId/continuity" component={ContinuityCheck} />
+      <Route path="/projects/:projectId/color-grading" component={ColorGrading} />
       <Route path="/projects/:id/locations" component={LocationScout} />
       <Route path="/projects/:id/mood-board" component={MoodBoard} />
       <Route path="/projects/:id/subtitles" component={Subtitles} />

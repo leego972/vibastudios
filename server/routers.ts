@@ -1947,6 +1947,8 @@ Generate a detailed production budget estimate.`,
         description: z.string().optional(),
         type: z.enum(["scene", "trailer", "film"]),
         projectId: z.number().optional(),
+        movieTitle: z.string().optional(),
+        sceneNumber: z.number().optional(),
         duration: z.number().optional(),
         tags: z.array(z.string()).optional(),
       }))
@@ -1957,9 +1959,71 @@ Generate a detailed production budget estimate.`,
           description: input.description,
           type: input.type,
           projectId: input.projectId,
+          movieTitle: input.movieTitle,
+          sceneNumber: input.sceneNumber,
           duration: input.duration,
           tags: input.tags ?? [],
         });
+      }),
+
+    // Export project content to My Movies
+    exportFromProject: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        exportType: z.enum(["film", "scenes", "trailer"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const project = await db.getProjectById(input.projectId, ctx.user.id);
+        if (!project) throw new Error("Project not found");
+        const scenes = await db.getProjectScenes(project.id);
+        const created: number[] = [];
+
+        if (input.exportType === "film") {
+          // Create a single full film entry
+          const movie = await db.createMovie({
+            userId: ctx.user.id,
+            title: project.title,
+            description: project.plotSummary || project.description || "",
+            type: "film",
+            projectId: project.id,
+            movieTitle: project.title,
+            thumbnailUrl: project.thumbnailUrl,
+            duration: (project.duration || 0) * 60,
+            tags: project.genre ? [project.genre] : [],
+          });
+          created.push(movie.id);
+        } else if (input.exportType === "scenes") {
+          // Create individual scene entries grouped under the movie title
+          for (let i = 0; i < scenes.length; i++) {
+            const scene = scenes[i];
+            const movie = await db.createMovie({
+              userId: ctx.user.id,
+              title: scene.title || `Scene ${i + 1}`,
+              description: scene.description || "",
+              type: "scene",
+              projectId: project.id,
+              movieTitle: project.title,
+              sceneNumber: scene.orderIndex || i + 1,
+              thumbnailUrl: scene.thumbnailUrl,
+              tags: [scene.locationType, scene.mood, scene.timeOfDay].filter(Boolean) as string[],
+            });
+            created.push(movie.id);
+          }
+        } else if (input.exportType === "trailer") {
+          // Create a trailer entry grouped under the movie title
+          const movie = await db.createMovie({
+            userId: ctx.user.id,
+            title: `${project.title} - Trailer`,
+            description: `Official trailer for ${project.title}`,
+            type: "trailer",
+            projectId: project.id,
+            movieTitle: project.title,
+            thumbnailUrl: project.thumbnailUrl,
+            tags: project.genre ? [project.genre, "trailer"] : ["trailer"],
+          });
+          created.push(movie.id);
+        }
+        return { exported: created.length, movieIds: created };
       }),
 
     upload: protectedProcedure
@@ -2001,12 +2065,33 @@ Generate a detailed production budget estimate.`,
         });
       }),
 
+    // List movies grouped by movieTitle for folder view
+    listGrouped: protectedProcedure.query(async ({ ctx }) => {
+      const allMovies = await db.getUserMovies(ctx.user.id);
+      // Separate: films without movieTitle go to top level, everything else groups by movieTitle
+      const folders: Record<string, typeof allMovies> = {};
+      const topLevel: typeof allMovies = [];
+      for (const m of allMovies) {
+        if (m.type === "film" && !m.movieTitle) {
+          topLevel.push(m);
+        } else if (m.movieTitle) {
+          if (!folders[m.movieTitle]) folders[m.movieTitle] = [];
+          folders[m.movieTitle].push(m);
+        } else {
+          topLevel.push(m);
+        }
+      }
+      return { folders, topLevel };
+    }),
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         type: z.enum(["scene", "trailer", "film"]).optional(),
+        movieTitle: z.string().optional(),
+        sceneNumber: z.number().optional(),
         duration: z.number().optional(),
         tags: z.array(z.string()).optional(),
       }))

@@ -329,7 +329,9 @@ export const movies = mysqlTable("movies", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   projectId: int("projectId"), // optional link to a project
+  movieTitle: varchar("movieTitle", { length: 255 }), // parent movie title for folder grouping
   title: varchar("title", { length: 255 }).notNull(),
+  sceneNumber: int("sceneNumber"), // scene ordering within a movie
   description: text("description"),
   type: mysqlEnum("movieType", ["scene", "trailer", "film"]).notNull().default("scene"),
   fileUrl: text("fileUrl"), // S3 URL for the video file

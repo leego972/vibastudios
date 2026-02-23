@@ -212,6 +212,16 @@ export default function ProjectDetail() {
     },
   });
 
+  const exportMutation = trpc.movie.exportFromProject.useMutation({
+    onSuccess: (result, variables) => {
+      utils.movie.list.invalidate();
+      utils.movie.listGrouped.invalidate();
+      const typeLabel = variables.exportType === "film" ? "Full film" : variables.exportType === "scenes" ? `${result.exported} scene(s)` : "Trailer";
+      toast.success(`${typeLabel} exported to My Movies`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const handlePhotoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -294,11 +304,11 @@ export default function ProjectDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <Button size="sm" variant="outline" onClick={() => setLocation(`/project/${project.id}/storyboard`)}>
+          <Button size="sm" variant="outline" onClick={() => setLocation(`/projects/${project.id}/storyboard`)}>
             <Grid3X3 className="h-4 w-4 mr-1" />
             Storyboard
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setLocation(`/project/${project.id}/script/new`)}>
+          <Button size="sm" variant="outline" onClick={() => setLocation(`/projects/${project.id}/script/new`)}>
             <FileText className="h-4 w-4 mr-1" />
             Script
           </Button>
@@ -772,19 +782,22 @@ export default function ProjectDetail() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <Button size="sm" onClick={() => toast.success("Export queued. You'll be notified when ready.")}>
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <Button size="sm" disabled={exportMutation.isPending} onClick={() => exportMutation.mutate({ projectId, exportType: "film" })}>
                   <Download className="h-4 w-4 mr-1" />
-                  Export Full Film
+                  {exportMutation.isPending ? "Exporting..." : "Export Full Film"}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => toast.success("Trailer export queued.")}>
+                <Button size="sm" variant="outline" disabled={exportMutation.isPending} onClick={() => exportMutation.mutate({ projectId, exportType: "trailer" })}>
                   <Film className="h-4 w-4 mr-1" />
-                  Export Trailer Only
+                  Export Trailer
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => toast.success("Scene exports queued.")}>
+                <Button size="sm" variant="outline" disabled={exportMutation.isPending} onClick={() => exportMutation.mutate({ projectId, exportType: "scenes" })}>
                   <Layers className="h-4 w-4 mr-1" />
-                  Export Individual Scenes
+                  Export Scenes
                 </Button>
+                <p className="text-xs text-muted-foreground w-full mt-1">
+                  Exported items appear in your My Movies library, organized by movie title.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -1347,7 +1360,7 @@ export default function ProjectDetail() {
       {/* Tools Tab Content */}
       <TabsContent value="tools" className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/project/${project.id}/color-grading`)}>
+          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/projects/${project.id}/color-grading`)}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Palette className="h-5 w-5 text-primary" />
@@ -1358,7 +1371,7 @@ export default function ProjectDetail() {
               </div>
             </CardContent>
           </Card>
-          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/project/${project.id}/credits`)}>
+          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/projects/${project.id}/credits`)}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Award className="h-5 w-5 text-primary" />
@@ -1369,7 +1382,7 @@ export default function ProjectDetail() {
               </div>
             </CardContent>
           </Card>
-          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/project/${project.id}/shot-list`)}>
+          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/projects/${project.id}/shot-list`)}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <ListOrdered className="h-5 w-5 text-primary" />
@@ -1380,7 +1393,7 @@ export default function ProjectDetail() {
               </div>
             </CardContent>
           </Card>
-          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/project/${project.id}/continuity`)}>
+          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/projects/${project.id}/continuity`)}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <ShieldCheck className="h-5 w-5 text-primary" />

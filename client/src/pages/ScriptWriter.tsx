@@ -158,7 +158,7 @@ export default function ScriptWriter() {
     onSuccess: (data) => {
       if (data) {
         utils.script.listByProject.invalidate({ projectId: pid });
-        navigate(`/project/${pid}/script/${data.id}`, { replace: true });
+        navigate(`/projects/${pid}/script/${data.id}`, { replace: true });
         toast.success("Script created");
         setIsDirty(false);
       }
@@ -177,7 +177,7 @@ export default function ScriptWriter() {
   const deleteMutation = trpc.script.delete.useMutation({
     onSuccess: () => {
       utils.script.listByProject.invalidate({ projectId: pid });
-      navigate(`/project/${pid}/script/new`);
+      navigate(`/projects/${pid}/script/new`);
       toast.success("Script deleted");
     },
   });
@@ -186,7 +186,7 @@ export default function ScriptWriter() {
     onSuccess: (data) => {
       if (data) {
         utils.script.listByProject.invalidate({ projectId: pid });
-        navigate(`/project/${pid}/script/${data.id}`);
+        navigate(`/projects/${pid}/script/${data.id}`);
         toast.success("AI screenplay generated");
       }
     },
@@ -364,7 +364,7 @@ export default function ScriptWriter() {
       {/* Top bar */}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-3 px-4 py-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/project/${pid}`)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/projects/${pid}`)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
 
@@ -477,7 +477,7 @@ export default function ScriptWriter() {
         <div className="w-56 shrink-0 border-r border-border p-3 hidden lg:block">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-muted-foreground">Scripts</h3>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/project/${pid}/script/new`)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/projects/${pid}/script/new`)}>
               <Plus className="h-3 w-3" />
             </Button>
           </div>
@@ -485,7 +485,7 @@ export default function ScriptWriter() {
             {scripts?.map((s) => (
               <button
                 key={s.id}
-                onClick={() => navigate(`/project/${pid}/script/${s.id}`)}
+                onClick={() => navigate(`/projects/${pid}/script/${s.id}`)}
                 className={`w-full text-left px-2 py-1.5 rounded text-sm truncate transition-colors ${
                   scriptId === String(s.id) ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50"
                 }`}

@@ -324,3 +324,16 @@
 ## UX Fix: Access Denied Screen
 - [x] Remove confusing "Access Denied + Sign out" dead-end screen
 - [x] Non-whitelisted users should be auto-logged out and redirected to login with a toast message
+
+## My Movies Folder Structure & Logical Production Flow
+- [x] Add movieTitle field to movies schema for grouping
+- [x] Scenes organized into folders by movie title
+- [x] Trailers organized under movie title folders
+- [x] Full films appear directly in main My Movies view
+- [x] Folder view with click-to-open movie folders showing scenes inside
+- [x] Back navigation from folder to main library
+- [x] Audit and refine entire app for logical film production workflow
+- [x] Ensure clear pipeline: Create Project → Write Scenes → Add Sound Effects → Collaborate → Generate → My Movies
+- [x] Fix inconsistent routing (/project/ vs /projects/) across all pages
+- [x] Fix broken back navigation in 7 tool pages
+- [x] Connect Export tab buttons to actually save to My Movies library

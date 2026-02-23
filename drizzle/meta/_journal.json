@@ -78,6 +78,13 @@
       "when": 1771882492800,
       "tag": "0010_wakeful_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1771886184671,
+      "tag": "0011_medical_skin",
+      "breakpoints": true
     }
   ]
 }
