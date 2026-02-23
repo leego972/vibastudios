@@ -35,6 +35,19 @@ export const projects = mysqlTable("projects", {
   quality: mysqlEnum("quality", ["standard", "high", "ultra"]).default("high"),
   colorGrading: varchar("colorGrading", { length: 128 }).default("natural"), // preset name or 'custom'
   colorGradingSettings: json("colorGradingSettings"), // { temperature, tint, contrast, saturation, highlights, shadows }
+  // Story & Narrative fields
+  mainPlot: text("mainPlot"), // detailed main storyline
+  sidePlots: text("sidePlots"), // secondary storylines
+  plotTwists: text("plotTwists"), // key twists and surprises
+  characterArcs: text("characterArcs"), // how characters develop through the story
+  themes: text("themes"), // central themes and messages
+  setting: text("setting"), // world-building, time period, universe details
+  actStructure: varchar("actStructure", { length: 64 }).default("three-act"), // three-act, five-act, heros-journey, nonlinear, episodic
+  tone: varchar("tone", { length: 128 }), // dark, comedic, suspenseful, romantic, etc.
+  targetAudience: varchar("targetAudience", { length: 255 }), // who the film is for
+  openingScene: text("openingScene"), // description of the opening
+  climax: text("climax"), // description of the climax
+  storyResolution: text("storyResolution"), // how the story resolves
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -55,6 +55,7 @@ import {
   Copy,
   MapPin,
   Languages,
+  BookOpen,
 } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import { useState, useRef, useCallback, useMemo } from "react";
@@ -62,6 +63,10 @@ import { toast } from "sonner";
 import {
   RATING_OPTIONS,
   GENRE_OPTIONS,
+  ACT_STRUCTURE_OPTIONS,
+  ACT_STRUCTURE_LABELS,
+  TONE_OPTIONS,
+  TARGET_AUDIENCE_OPTIONS,
 } from "@shared/types";
 
 const MOOD_OPTIONS = [
@@ -343,6 +348,9 @@ export default function ProjectDetail() {
           <TabsTrigger value="soundtrack" className="text-xs">
             <Music className="h-3 w-3 mr-1" />Soundtrack {soundtracks?.length ? `(${soundtracks.length})` : ""}
           </TabsTrigger>
+          <TabsTrigger value="story" className="text-xs">
+            <BookOpen className="h-3 w-3 mr-1" />Story
+          </TabsTrigger>
           <TabsTrigger value="trailer" className="text-xs">Trailer</TabsTrigger>
           <TabsTrigger value="export" className="text-xs">
             <Download className="h-3 w-3 mr-1" />Export
@@ -594,6 +602,11 @@ export default function ProjectDetail() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* Story Tab */}
+        <TabsContent value="story" className="space-y-4">
+          <StoryEditor project={project} updateMutation={updateMutation} />
         </TabsContent>
 
         {/* Trailer Tab */}
@@ -1425,6 +1438,217 @@ export default function ProjectDetail() {
         </div>
       </TabsContent>
 
+    </div>
+  );
+}
+
+// ─── Story Editor Component ───
+function StoryEditor({ project, updateMutation }: { project: any; updateMutation: any }) {
+  const [mainPlot, setMainPlot] = useState(project.mainPlot || "");
+  const [sidePlots, setSidePlots] = useState(project.sidePlots || "");
+  const [plotTwists, setPlotTwists] = useState(project.plotTwists || "");
+  const [characterArcs, setCharacterArcs] = useState(project.characterArcs || "");
+  const [themes, setThemes] = useState(project.themes || "");
+  const [setting, setSetting] = useState(project.setting || "");
+  const [actStructure, setActStructure] = useState(project.actStructure || "three-act");
+  const [tone, setTone] = useState(project.tone || "");
+  const [targetAudience, setTargetAudience] = useState(project.targetAudience || "");
+  const [openingScene, setOpeningScene] = useState(project.openingScene || "");
+  const [climax, setClimax] = useState(project.climax || "");
+  const [storyResolution, setStoryResolution] = useState(project.storyResolution || "");
+  const [dirty, setDirty] = useState(false);
+
+  const mark = (setter: (v: string) => void) => (v: string) => { setter(v); setDirty(true); };
+
+  const handleSave = () => {
+    updateMutation.mutate({
+      id: project.id,
+      mainPlot: mainPlot || undefined,
+      sidePlots: sidePlots || undefined,
+      plotTwists: plotTwists || undefined,
+      characterArcs: characterArcs || undefined,
+      themes: themes || undefined,
+      setting: setting || undefined,
+      actStructure: actStructure || undefined,
+      tone: tone || undefined,
+      targetAudience: targetAudience || undefined,
+      openingScene: openingScene || undefined,
+      climax: climax || undefined,
+      storyResolution: storyResolution || undefined,
+    });
+    setDirty(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">Story, plot, and narrative details</p>
+          <p className="text-xs text-muted-foreground/60 mt-0.5">The more detail you provide, the better the AI-generated film</p>
+        </div>
+        <Button size="sm" disabled={!dirty || updateMutation.isPending} onClick={handleSave}>
+          {updateMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+          Save Changes
+        </Button>
+      </div>
+
+      {/* Structure & Tone */}
+      <Card className="bg-card/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Structure & Tone</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Act Structure</Label>
+              <Select value={actStructure} onValueChange={(v) => { setActStructure(v); setDirty(true); }}>
+                <SelectTrigger className="bg-background/50 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACT_STRUCTURE_OPTIONS.map((a) => (
+                    <SelectItem key={a} value={a}>{ACT_STRUCTURE_LABELS[a]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Tone / Style</Label>
+              <Select value={tone} onValueChange={(v) => { setTone(v); setDirty(true); }}>
+                <SelectTrigger className="bg-background/50 h-8 text-xs">
+                  <SelectValue placeholder="Select tone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TONE_OPTIONS.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Target Audience</Label>
+              <Select value={targetAudience} onValueChange={(v) => { setTargetAudience(v); setDirty(true); }}>
+                <SelectTrigger className="bg-background/50 h-8 text-xs">
+                  <SelectValue placeholder="Select audience" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TARGET_AUDIENCE_OPTIONS.map((a) => (
+                    <SelectItem key={a} value={a}>{a}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Central Themes</Label>
+            <Input
+              placeholder="e.g. Redemption, Love, Betrayal, Identity, Power"
+              value={themes}
+              onChange={(e) => mark(setThemes)(e.target.value)}
+              className="bg-background/50 h-8 text-xs"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Plot & Subplots */}
+      <Card className="bg-card/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Plot</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Main Plot</Label>
+            <Textarea
+              placeholder="Describe the main storyline in detail — the central conflict, protagonist's journey, and how events unfold..."
+              value={mainPlot}
+              onChange={(e) => mark(setMainPlot)(e.target.value)}
+              className="bg-background/50 min-h-[120px] text-xs resize-y"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Side Plots / Subplots</Label>
+            <Textarea
+              placeholder="Secondary storylines — romance, rivalry, mystery, parallel journeys..."
+              value={sidePlots}
+              onChange={(e) => mark(setSidePlots)(e.target.value)}
+              className="bg-background/50 min-h-[100px] text-xs resize-y"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Plot Twists & Surprises</Label>
+            <Textarea
+              placeholder="Key twists, betrayals, revelations, unexpected turns and when they occur..."
+              value={plotTwists}
+              onChange={(e) => mark(setPlotTwists)(e.target.value)}
+              className="bg-background/50 min-h-[100px] text-xs resize-y"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Character Arcs & Development</Label>
+            <Textarea
+              placeholder="How do your main characters change? What lessons do they learn? What flaws do they overcome?"
+              value={characterArcs}
+              onChange={(e) => mark(setCharacterArcs)(e.target.value)}
+              className="bg-background/50 min-h-[100px] text-xs resize-y"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* World & Key Moments */}
+      <Card className="bg-card/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">World & Key Moments</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Setting / World-Building</Label>
+            <Textarea
+              placeholder="Time period, location, culture, technology, rules of the universe..."
+              value={setting}
+              onChange={(e) => mark(setSetting)(e.target.value)}
+              className="bg-background/50 min-h-[100px] text-xs resize-y"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Opening Scene</Label>
+            <Textarea
+              placeholder="How does the film begin? The first thing the audience sees — set the tone, introduce the world..."
+              value={openingScene}
+              onChange={(e) => mark(setOpeningScene)(e.target.value)}
+              className="bg-background/50 min-h-[80px] text-xs resize-y"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Climax</Label>
+            <Textarea
+              placeholder="The peak of tension — the central conflict comes to a head. What happens? Who is involved?"
+              value={climax}
+              onChange={(e) => mark(setClimax)(e.target.value)}
+              className="bg-background/50 min-h-[80px] text-xs resize-y"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Resolution / Ending</Label>
+            <Textarea
+              placeholder="How does the story end? Happy, bittersweet, tragic, open-ended? What is the audience left feeling?"
+              value={storyResolution}
+              onChange={(e) => mark(setStoryResolution)(e.target.value)}
+              className="bg-background/50 min-h-[80px] text-xs resize-y"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {dirty && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+            Save All Story Changes
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

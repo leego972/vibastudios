@@ -208,3 +208,20 @@
 - [x] AI translate subtitles to 24 languages
 - [x] SRT and VTT export for each language
 - [x] Inline text editing for individual subtitle entries
+
+## Comprehensive Story/Narrative Inputs
+- [x] Add story fields to database: mainPlot, sidePlots, twists, characterArcs, themes, setting, actStructure, targetAudience, tone, openingScene, climax, storyResolution
+- [x] Expand NewProject form with dedicated Story & Narrative section (3 tabs: Basics, Story & Plot, Narrative Details)
+- [x] Main Plot textarea (detailed main storyline)
+- [x] Side Plots textarea (secondary storylines)
+- [x] Plot Twists textarea (key twists and surprises)
+- [x] Character Arcs textarea (how characters develop)
+- [x] Themes input (central themes and messages)
+- [x] Setting/World textarea (world-building details)
+- [x] Act Structure selector (7 options: three-act, five-act, hero's journey, nonlinear, episodic, circular, in-medias-res)
+- [x] Tone/Style selector (16 options)
+- [x] Opening Scene description
+- [x] Climax description
+- [x] Resolution/Ending description
+- [x] Target Audience selector (7 options)
+- [x] Story tab added to ProjectDetail with full StoryEditor component (editable, save-on-change)

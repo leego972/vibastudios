@@ -43,6 +43,19 @@ export const appRouter = router({
         plotSummary: z.string().optional(),
         resolution: z.string().optional(),
         quality: z.enum(["standard", "high", "ultra"]).optional(),
+        // Story & Narrative
+        mainPlot: z.string().optional(),
+        sidePlots: z.string().optional(),
+        plotTwists: z.string().optional(),
+        characterArcs: z.string().optional(),
+        themes: z.string().optional(),
+        setting: z.string().optional(),
+        actStructure: z.string().optional(),
+        tone: z.string().optional(),
+        targetAudience: z.string().optional(),
+        openingScene: z.string().optional(),
+        climax: z.string().optional(),
+        storyResolution: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         return db.createProject({ ...input, userId: ctx.user.id });
@@ -63,6 +76,19 @@ export const appRouter = router({
         quality: z.enum(["standard", "high", "ultra"]).optional(),
         colorGrading: z.string().optional(),
         colorGradingSettings: z.any().optional(),
+        // Story & Narrative
+        mainPlot: z.string().optional(),
+        sidePlots: z.string().optional(),
+        plotTwists: z.string().optional(),
+        characterArcs: z.string().optional(),
+        themes: z.string().optional(),
+        setting: z.string().optional(),
+        actStructure: z.string().optional(),
+        tone: z.string().optional(),
+        targetAudience: z.string().optional(),
+        openingScene: z.string().optional(),
+        climax: z.string().optional(),
+        storyResolution: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;

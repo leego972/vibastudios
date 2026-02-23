@@ -43,6 +43,31 @@ export const GENRE_OPTIONS = [
   "Western", "Musical", "War", "Crime", "Adventure",
 ] as const;
 
+export const ACT_STRUCTURE_OPTIONS = [
+  "three-act", "five-act", "heros-journey", "nonlinear", "episodic", "circular", "in-medias-res",
+] as const;
+
+export const ACT_STRUCTURE_LABELS: Record<string, string> = {
+  "three-act": "Three-Act Structure",
+  "five-act": "Five-Act Structure",
+  "heros-journey": "Hero's Journey",
+  "nonlinear": "Nonlinear / Fragmented",
+  "episodic": "Episodic",
+  "circular": "Circular Narrative",
+  "in-medias-res": "In Medias Res",
+};
+
+export const TONE_OPTIONS = [
+  "Dark", "Comedic", "Suspenseful", "Romantic", "Gritty", "Whimsical",
+  "Satirical", "Melancholic", "Uplifting", "Noir", "Surreal", "Intense",
+  "Lighthearted", "Philosophical", "Absurdist", "Poetic",
+] as const;
+
+export const TARGET_AUDIENCE_OPTIONS = [
+  "Children (5-12)", "Teens (13-17)", "Young Adults (18-25)",
+  "Adults (25-45)", "Mature Adults (45+)", "Family", "Universal",
+] as const;
+
 export type CharacterAttributes = {
   age?: string;
   gender?: string;
