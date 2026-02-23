@@ -337,3 +337,23 @@
 - [x] Fix inconsistent routing (/project/ vs /projects/) across all pages
 - [x] Fix broken back navigation in 7 tool pages
 - [x] Connect Export tab buttons to actually save to My Movies library
+
+## Director's Assistant AI Chat
+- [x] Create chat messages table in database (projectId, role, content, actionType, actionData, timestamp)
+- [x] Backend chat router with LLM integration for understanding director commands
+- [x] Action execution system: add sound effects at timestamps, cut scenes, add transitions, modify scene parameters
+- [x] Proactive assistant suggestions during film build (continuity tips, pacing advice, missing elements)
+- [x] Chat UI component with message history, streaming responses, and action confirmations
+- [x] Floating chat button on ProjectDetail page
+- [x] Action types: add_sound, cut_scene, add_transition, modify_scene, add_character, suggest_improvement, generate_preview
+- [x] Chat context awareness: knows current project state, scenes, characters, timeline
+- [x] Mobile-optimized chat interface
+- [x] Comfortable chat input area with expandable textarea
+- [x] File/image upload button in chat (supports multiple files)
+- [x] Mobile-optimized chat interface for iOS and Android
+- [x] Director can describe a scene vision in chat and AI creates a complete scene with all missing details filled in realistically
+- [x] AI auto-fills lighting, camera angles, weather, mood, transitions, dialogue, sound effects, duration, production notes
+- [x] Director can upload photos and describe a film concept, AI generates a complete multi-scene film
+- [x] AI analyzes uploaded photos to understand characters/locations and uses them as visual references
+- [x] AI auto-generates all scenes with appropriate pacing, dialogue, sound effects, transitions for a full film
+- [x] Support specifying film duration (e.g. "2 minute film") and AI creates appropriate number of scenes

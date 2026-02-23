@@ -348,3 +348,19 @@ export const movies = mysqlTable("movies", {
 
 export type Movie = typeof movies.$inferSelect;
 export type InsertMovie = typeof movies.$inferInsert;
+
+// Director's Assistant chat messages
+export const directorChats = mysqlTable("directorChats", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("chatRole", ["user", "assistant", "system"]).notNull(),
+  content: text("content").notNull(),
+  actionType: varchar("actionType", { length: 128 }), // e.g. add_sound, cut_scene, add_transition, modify_scene
+  actionData: json("actionData"), // JSON with action details and results
+  actionStatus: mysqlEnum("actionStatus", ["pending", "executed", "failed"]).default("pending"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DirectorChat = typeof directorChats.$inferSelect;
+export type InsertDirectorChat = typeof directorChats.$inferInsert;

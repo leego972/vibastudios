@@ -17,6 +17,7 @@ import {
   InsertSoundEffect, soundEffects,
   InsertCollaborator, collaborators,
   InsertMovie, movies,
+  InsertDirectorChat, directorChats,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -727,4 +728,28 @@ export async function deleteMovie(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(movies).where(and(eq(movies.id, id), eq(movies.userId, userId)));
+}
+
+// Director Chat helpers
+export async function createChatMessage(data: InsertDirectorChat) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(directorChats).values(data);
+  return { id: Number(result[0].insertId), ...data };
+}
+
+export async function getProjectChatHistory(projectId: number, userId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(directorChats)
+    .where(and(eq(directorChats.projectId, projectId), eq(directorChats.userId, userId)))
+    .orderBy(desc(directorChats.createdAt))
+    .limit(limit);
+}
+
+export async function clearProjectChat(projectId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(directorChats)
+    .where(and(eq(directorChats.projectId, projectId), eq(directorChats.userId, userId)));
 }

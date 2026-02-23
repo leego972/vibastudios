@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import DirectorChat from "@/components/DirectorChat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -1499,11 +1500,12 @@ export default function ProjectDetail() {
         </div>
       </TabsContent>
 
+      {/* Director's Assistant Chat */}
+      <DirectorChat projectId={project.id} />
     </div>
   );
 }
-
-// ─── Story Editor Component ───
+// ─── Story Editor Component ─────
 function StoryEditor({ project, updateMutation }: { project: any; updateMutation: any }) {
   const [mainPlot, setMainPlot] = useState(project.mainPlot || "");
   const [sidePlots, setSidePlots] = useState(project.sidePlots || "");

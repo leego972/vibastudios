@@ -8,6 +8,7 @@ import { storagePut } from "./storage";
 import { invokeLLM } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
 import { nanoid } from "nanoid";
+import { processDirectorMessage } from "./directorAssistant";
 
 export const appRouter = router({
   system: systemRouter,
@@ -2104,6 +2105,100 @@ Generate a detailed production budget estimate.`,
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         await db.deleteMovie(input.id, ctx.user.id);
+        return { success: true };
+      }),
+  }),
+
+  // Director's Assistant Chat
+  directorChat: router({
+    history: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const messages = await db.getProjectChatHistory(input.projectId, ctx.user.id, 50);
+        return messages.reverse(); // oldest first
+      }),
+
+    send: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        message: z.string().min(1).max(5000),
+        attachmentUrl: z.string().optional(),
+        attachmentName: z.string().optional(),
+        imageUrls: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Build user message with attachment info if present
+        let userContent = input.message;
+        if (input.attachmentUrl) {
+          userContent += `\n\n[Attached file: ${input.attachmentName || 'file'}](${input.attachmentUrl})`;
+        }
+        if (input.imageUrls && input.imageUrls.length > 0) {
+          userContent += `\n\n[Reference images: ${input.imageUrls.length} image(s) attached]`;
+        }
+
+        // Save user message
+        await db.createChatMessage({
+          projectId: input.projectId,
+          userId: ctx.user.id,
+          role: "user",
+          content: userContent,
+        });
+
+        // Get chat history for context
+        const history = await db.getProjectChatHistory(input.projectId, ctx.user.id, 20);
+        const chatHistory = history.reverse().map((m) => ({
+          role: m.role as "user" | "assistant" | "system",
+          content: m.content,
+        }));
+
+        // Process with AI
+        const result = await processDirectorMessage(
+          input.projectId,
+          ctx.user.id,
+          userContent,
+          chatHistory,
+          input.imageUrls
+        );
+
+        // Save assistant response
+        const actionSummary = result.actions.length > 0
+          ? result.actions.map((a) => a.type).join(",")
+          : null;
+        await db.createChatMessage({
+          projectId: input.projectId,
+          userId: ctx.user.id,
+          role: "assistant",
+          content: result.response,
+          actionType: actionSummary,
+          actionData: result.actions.length > 0 ? result.actions : undefined,
+          actionStatus: result.actions.some((a) => !a.success) ? "failed" : result.actions.length > 0 ? "executed" : "pending",
+        });
+
+        return {
+          response: result.response,
+          actions: result.actions,
+        };
+      }),
+
+    uploadAttachment: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        fileName: z.string(),
+        fileData: z.string(), // base64 encoded
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const buffer = Buffer.from(input.fileData, "base64");
+        const ext = input.fileName.split(".").pop() || "bin";
+        const key = `director-chat/${input.projectId}/${nanoid()}.${ext}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        return { url, fileName: input.fileName };
+      }),
+
+    clear: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await db.clearProjectChat(input.projectId, ctx.user.id);
         return { success: true };
       }),
   }),
