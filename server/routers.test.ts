@@ -517,3 +517,161 @@ describe("project.update with colorGrading", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("location router", () => {
+  it("requires authentication for location.listByProject", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.location.listByProject({ projectId: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for location.create", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.location.create({ projectId: 1, name: "Central Park" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for location.delete", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.location.delete({ id: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("validates location.create input - name required", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.location.create({ projectId: 1, name: "" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for location.aiSuggest", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.location.aiSuggest({ projectId: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for location.generateImage", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.location.generateImage({ description: "A dark alley" })
+    ).rejects.toThrow();
+  });
+});
+
+describe("moodBoard router", () => {
+  it("requires authentication for moodBoard.listByProject", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.moodBoard.listByProject({ projectId: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for moodBoard.create", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.moodBoard.create({ projectId: 1, type: "text", text: "Dark moody" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for moodBoard.delete", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.moodBoard.delete({ id: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("validates moodBoard.create input - type enum", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.moodBoard.create({ projectId: 1, type: "invalid" as any })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for moodBoard.generateImage", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.moodBoard.generateImage({ prompt: "Moody noir scene" })
+    ).rejects.toThrow();
+  });
+});
+
+describe("subtitle router", () => {
+  it("requires authentication for subtitle.listByProject", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.subtitle.listByProject({ projectId: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for subtitle.create", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.subtitle.create({ projectId: 1, language: "en", languageName: "English" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for subtitle.update", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.subtitle.update({ id: 1, entries: [] })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for subtitle.delete", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.subtitle.delete({ id: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("validates subtitle.create input - language required", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.subtitle.create({ projectId: 1, language: "", languageName: "English" })
+    ).rejects.toThrow();
+  });
+
+  it("validates subtitle.create input - languageName required", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.subtitle.create({ projectId: 1, language: "en", languageName: "" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for subtitle.aiGenerate", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.subtitle.aiGenerate({ projectId: 1, language: "en", languageName: "English" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for subtitle.aiTranslate", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.subtitle.aiTranslate({ subtitleId: 1, targetLanguage: "es", targetLanguageName: "Spanish" })
+    ).rejects.toThrow();
+  });
+});

@@ -183,3 +183,28 @@
 - [x] Character name field for cast credits
 - [x] Live credits preview in cinematic black style
 - [x] Add/delete credits with section selection
+
+## Location Scout
+- [x] Locations table in database (projectId, sceneId, name, address, type, description, referenceImages, notes, tags)
+- [x] Backend CRUD for locations + AI location suggestion endpoint
+- [x] Location Scout page with search, browse by type, and save reference images
+- [x] Location cards with image gallery, type badges, and scene assignment
+- [x] AI-powered location suggestions based on scene descriptions
+- [x] AI reference image generation for locations
+
+## Mood Board
+- [x] MoodBoard items table in database (projectId, type, imageUrl, text, color, category)
+- [x] Backend CRUD for mood board items + AI image generation
+- [x] Mood Board page with Pinterest-style masonry grid
+- [x] Pin reference images, color palettes, style notes, and text cards
+- [x] AI image generation from text descriptions
+- [x] Category filtering (Colors, Images, Typography, Textures, References, Notes)
+
+## Multi-Language Subtitles
+- [x] Subtitles table in database (projectId, language, languageName, entries JSON, isGenerated, isTranslation)
+- [x] Backend CRUD for subtitles + AI generation + AI translation endpoints
+- [x] Subtitles page with language sidebar and inline entry editor
+- [x] AI auto-generate subtitles from project scenes/dialogue
+- [x] AI translate subtitles to 24 languages
+- [x] SRT and VTT export for each language
+- [x] Inline text editing for individual subtitle entries

@@ -9,6 +9,9 @@ import {
   InsertScript, scripts,
   InsertSoundtrack, soundtracks,
   InsertCredit, credits,
+  InsertLocation, locations,
+  InsertMoodBoardItem, moodBoardItems,
+  InsertSubtitle, subtitles,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -433,4 +436,102 @@ export async function duplicateProject(projectId: number, userId: number) {
   }
   
   return newProject;
+}
+
+// ─── Locations ───
+export async function createLocation(data: InsertLocation) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(locations).values(data);
+  const id = result[0].insertId;
+  return (await db.select().from(locations).where(eq(locations.id, id)))[0];
+}
+
+export async function getProjectLocations(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(locations).where(eq(locations.projectId, projectId)).orderBy(desc(locations.createdAt));
+}
+
+export async function getLocationById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(locations).where(eq(locations.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateLocation(id: number, data: Partial<InsertLocation>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(locations).set(data).where(eq(locations.id, id));
+  return (await db.select().from(locations).where(eq(locations.id, id)))[0];
+}
+
+export async function deleteLocation(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(locations).where(eq(locations.id, id));
+}
+
+// ─── Mood Board ───
+export async function createMoodBoardItem(data: InsertMoodBoardItem) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(moodBoardItems).values(data);
+  const id = result[0].insertId;
+  return (await db.select().from(moodBoardItems).where(eq(moodBoardItems.id, id)))[0];
+}
+
+export async function getProjectMoodBoard(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(moodBoardItems).where(eq(moodBoardItems.projectId, projectId)).orderBy(desc(moodBoardItems.createdAt));
+}
+
+export async function updateMoodBoardItem(id: number, data: Partial<InsertMoodBoardItem>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(moodBoardItems).set(data).where(eq(moodBoardItems.id, id));
+  return (await db.select().from(moodBoardItems).where(eq(moodBoardItems.id, id)))[0];
+}
+
+export async function deleteMoodBoardItem(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(moodBoardItems).where(eq(moodBoardItems.id, id));
+}
+
+// ─── Subtitles ───
+export async function createSubtitle(data: InsertSubtitle) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(subtitles).values(data);
+  const id = result[0].insertId;
+  return (await db.select().from(subtitles).where(eq(subtitles.id, id)))[0];
+}
+
+export async function getProjectSubtitles(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(subtitles).where(eq(subtitles.projectId, projectId)).orderBy(asc(subtitles.languageName));
+}
+
+export async function getSubtitleById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(subtitles).where(eq(subtitles.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateSubtitle(id: number, data: Partial<InsertSubtitle>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(subtitles).set(data).where(eq(subtitles.id, id));
+  return (await db.select().from(subtitles).where(eq(subtitles.id, id)))[0];
+}
+
+export async function deleteSubtitle(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(subtitles).where(eq(subtitles.id, id));
 }

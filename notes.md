@@ -1,6 +1,6 @@
 # Build Notes
 - No TypeScript errors, dev server running
-- New pages: Storyboard, CreditsEditor, ShotList, ContinuityCheck, ColorGrading
+- New pages added: LocationScout, MoodBoard, Subtitles
 - All routed in App.tsx as full-screen pages
-- ProjectDetail has Tools tab with links to all production tools + Duplicate
+- ProjectDetail Tools tab has cards for all tools including new 3
 - Need to run tests and push to GitHub

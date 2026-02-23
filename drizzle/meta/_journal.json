@@ -36,6 +36,13 @@
       "when": 1771861010367,
       "tag": "0004_dear_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1771863267206,
+      "tag": "0005_talented_gateway",
+      "breakpoints": true
     }
   ]
 }

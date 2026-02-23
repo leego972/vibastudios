@@ -53,6 +53,8 @@ import {
   ShieldCheck,
   Palette,
   Copy,
+  MapPin,
+  Languages,
 } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import { useState, useRef, useCallback, useMemo } from "react";
@@ -1369,6 +1371,39 @@ export default function ProjectDetail() {
               <div>
                 <p className="text-sm font-medium">Continuity Check</p>
                 <p className="text-xs text-muted-foreground">AI script supervision</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/projects/${project.id}/locations`)}>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <MapPin className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Location Scout</p>
+                <p className="text-xs text-muted-foreground">Find & manage filming locations</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/projects/${project.id}/mood-board`)}>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Palette className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Mood Board</p>
+                <p className="text-xs text-muted-foreground">Visual inspiration & creative direction</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setLocation(`/projects/${project.id}/subtitles`)}>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Languages className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Subtitles</p>
+                <p className="text-xs text-muted-foreground">Multi-language subtitle management</p>
               </div>
             </CardContent>
           </Card>

@@ -171,3 +171,65 @@ export const credits = mysqlTable("credits", {
 
 export type Credit = typeof credits.$inferSelect;
 export type InsertCredit = typeof credits.$inferInsert;
+
+// Location scout
+export const locations = mysqlTable("locations", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  userId: int("userId").notNull(),
+  sceneId: int("sceneId"), // null = not assigned to a scene yet
+  name: varchar("name", { length: 255 }).notNull(),
+  address: varchar("address", { length: 512 }),
+  locationType: varchar("locationType", { length: 128 }), // city, forest, beach, mansion, warehouse, etc.
+  description: text("description"),
+  referenceImages: json("referenceImages"), // array of S3 URLs
+  notes: text("notes"),
+  tags: json("tags"), // array of string tags
+  latitude: float("latitude"),
+  longitude: float("longitude"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Location = typeof locations.$inferSelect;
+export type InsertLocation = typeof locations.$inferInsert;
+
+// Mood board items
+export const moodBoardItems = mysqlTable("moodBoardItems", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", ["image", "color", "text", "reference"]).notNull().default("image"),
+  imageUrl: text("imageUrl"), // S3 URL for images
+  text: text("text"), // for text cards and notes
+  color: varchar("color", { length: 32 }), // hex color for color swatches
+  tags: json("tags"), // array of string tags
+  category: varchar("category", { length: 128 }), // colors, images, typography, textures, references
+  posX: int("posX").default(0),
+  posY: int("posY").default(0),
+  width: int("width").default(200),
+  height: int("height").default(200),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MoodBoardItem = typeof moodBoardItems.$inferSelect;
+export type InsertMoodBoardItem = typeof moodBoardItems.$inferInsert;
+
+// Subtitles
+export const subtitles = mysqlTable("subtitles", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  userId: int("userId").notNull(),
+  language: varchar("language", { length: 32 }).notNull(), // ISO 639-1 code: en, es, fr, etc.
+  languageName: varchar("languageName", { length: 128 }).notNull(), // English, Spanish, French, etc.
+  entries: json("entries"), // array of { sceneId, startTime, endTime, text }
+  isGenerated: int("isGenerated").default(0), // 0 = manual, 1 = AI generated
+  isTranslation: int("isTranslation").default(0), // 0 = original, 1 = translated from another language
+  sourceLanguage: varchar("sourceLanguage", { length: 32 }), // which language this was translated from
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Subtitle = typeof subtitles.$inferSelect;
+export type InsertSubtitle = typeof subtitles.$inferInsert;

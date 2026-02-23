@@ -1012,6 +1012,368 @@ export const appRouter = router({
         return parsed;
       }),
   }),
+
+  // ─── Location Scout ───
+  location: router({
+    listByProject: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getProjectLocations(input.projectId);
+      }),
+
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return db.getLocationById(input.id);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        sceneId: z.number().nullable().optional(),
+        name: z.string().min(1).max(255),
+        address: z.string().max(512).optional(),
+        locationType: z.string().max(128).optional(),
+        description: z.string().optional(),
+        referenceImages: z.array(z.string()).optional(),
+        notes: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return db.createLocation({
+          ...input,
+          userId: ctx.user.id,
+          sceneId: input.sceneId ?? null,
+          referenceImages: input.referenceImages || [],
+          tags: input.tags || [],
+        });
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).max(255).optional(),
+        address: z.string().max(512).optional(),
+        locationType: z.string().max(128).optional(),
+        description: z.string().optional(),
+        referenceImages: z.array(z.string()).optional(),
+        notes: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        sceneId: z.number().nullable().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateLocation(id, data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteLocation(input.id);
+        return { success: true };
+      }),
+
+    aiSuggest: protectedProcedure
+      .input(z.object({ projectId: z.number(), sceneDescription: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const project = await db.getProjectById(input.projectId, ctx.user.id);
+        if (!project) throw new Error("Project not found");
+        const scenes = await db.getProjectScenes(input.projectId);
+        const sceneContext = input.sceneDescription || scenes.map((s, i) => `Scene ${i+1}: ${s.description || s.title} (${s.locationType || 'unspecified'})`).join("\n");
+
+        const llmResult = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are a professional film location scout. Suggest ideal filming locations based on the scene descriptions. For each location, provide a name, type, description of the setting, visual characteristics, practical notes for filming, and relevant tags. Return as JSON." },
+            { role: "user", content: `Film: ${project.title} (${project.genre || 'Drama'})\n\nScenes:\n${sceneContext}\n\nSuggest 5-8 ideal filming locations.` },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "location_suggestions",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  locations: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        locationType: { type: "string" },
+                        description: { type: "string" },
+                        visualStyle: { type: "string" },
+                        practicalNotes: { type: "string" },
+                        tags: { type: "array", items: { type: "string" } },
+                      },
+                      required: ["name", "locationType", "description", "visualStyle", "practicalNotes", "tags"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["locations"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+        const content = llmResult.choices[0]?.message?.content;
+        return JSON.parse(typeof content === "string" ? content : "");
+      }),
+
+    generateImage: protectedProcedure
+      .input(z.object({ description: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const { url } = await generateImage({
+          prompt: `Professional film location reference photo: ${input.description}. Photorealistic, cinematic lighting, wide establishing shot, ARRI ALEXA camera quality, golden hour atmosphere.`,
+        });
+        return { url };
+      }),
+  }),
+
+  // ─── Mood Board ───
+  moodBoard: router({
+    listByProject: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getProjectMoodBoard(input.projectId);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        type: z.enum(["image", "color", "text", "reference"]),
+        imageUrl: z.string().optional(),
+        text: z.string().optional(),
+        color: z.string().max(32).optional(),
+        tags: z.array(z.string()).optional(),
+        category: z.string().max(128).optional(),
+        posX: z.number().optional(),
+        posY: z.number().optional(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return db.createMoodBoardItem({
+          ...input,
+          userId: ctx.user.id,
+          tags: input.tags || [],
+        });
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        text: z.string().optional(),
+        color: z.string().max(32).optional(),
+        tags: z.array(z.string()).optional(),
+        category: z.string().max(128).optional(),
+        posX: z.number().optional(),
+        posY: z.number().optional(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateMoodBoardItem(id, data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteMoodBoardItem(input.id);
+        return { success: true };
+      }),
+
+    generateImage: protectedProcedure
+      .input(z.object({ prompt: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const { url } = await generateImage({
+          prompt: `Cinematic mood board reference: ${input.prompt}. Artistic, atmospheric, film production quality.`,
+        });
+        return { url };
+      }),
+  }),
+
+  // ─── Subtitles ───
+  subtitle: router({
+    listByProject: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getProjectSubtitles(input.projectId);
+      }),
+
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return db.getSubtitleById(input.id);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        language: z.string().min(1).max(32),
+        languageName: z.string().min(1).max(128),
+        entries: z.array(z.object({
+          sceneId: z.number().optional(),
+          startTime: z.number(),
+          endTime: z.number(),
+          text: z.string(),
+        })).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return db.createSubtitle({
+          ...input,
+          userId: ctx.user.id,
+          entries: input.entries || [],
+        });
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        entries: z.array(z.object({
+          sceneId: z.number().optional(),
+          startTime: z.number(),
+          endTime: z.number(),
+          text: z.string(),
+        })).optional(),
+        language: z.string().min(1).max(32).optional(),
+        languageName: z.string().min(1).max(128).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateSubtitle(id, data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteSubtitle(input.id);
+        return { success: true };
+      }),
+
+    aiGenerate: protectedProcedure
+      .input(z.object({ projectId: z.number(), language: z.string().default("en"), languageName: z.string().default("English") }))
+      .mutation(async ({ ctx, input }) => {
+        const project = await db.getProjectById(input.projectId, ctx.user.id);
+        if (!project) throw new Error("Project not found");
+        const scenes = await db.getProjectScenes(input.projectId);
+        const characters = await db.getProjectCharacters(input.projectId);
+
+        const sceneContext = scenes.map((s, i) => {
+          const charNames = (s.characterIds as number[] || []).map(id => characters.find(c => c.id === id)?.name || 'Unknown').join(', ');
+          return `Scene ${i+1} "${s.title}" (${s.duration || 30}s): ${s.description || 'No description'} | Characters: ${charNames} | Dialogue: ${s.dialogueText || 'none'}`;
+        }).join("\n");
+
+        const llmResult = await invokeLLM({
+          messages: [
+            { role: "system", content: `You are a professional subtitle writer for films. Generate accurate, well-timed subtitles in ${input.languageName} for the given scenes. Each subtitle entry should have a scene reference, start time (seconds from film start), end time, and the subtitle text. Keep subtitles concise (max 2 lines, 42 chars per line). Include both dialogue and important sound descriptions [in brackets]. Return as JSON.` },
+            { role: "user", content: `Film: ${project.title} (${project.genre || 'Drama'}, ${project.rating || 'PG-13'})\nTotal Duration: ${project.duration || 90} minutes\n\nScenes:\n${sceneContext}\n\nGenerate subtitles in ${input.languageName} for the entire film.` },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "subtitle_entries",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  entries: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        startTime: { type: "number" },
+                        endTime: { type: "number" },
+                        text: { type: "string" },
+                      },
+                      required: ["startTime", "endTime", "text"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["entries"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = llmResult.choices[0]?.message?.content;
+        const parsed = JSON.parse(typeof content === "string" ? content : "");
+
+        return db.createSubtitle({
+          projectId: input.projectId,
+          userId: ctx.user.id,
+          language: input.language,
+          languageName: input.languageName,
+          entries: parsed.entries,
+          isGenerated: 1,
+        });
+      }),
+
+    aiTranslate: protectedProcedure
+      .input(z.object({
+        subtitleId: z.number(),
+        targetLanguage: z.string().min(1).max(32),
+        targetLanguageName: z.string().min(1).max(128),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const source = await db.getSubtitleById(input.subtitleId);
+        if (!source) throw new Error("Source subtitle not found");
+        const entries = source.entries as any[] || [];
+        const subtitleText = entries.map((e: any) => `[${e.startTime}-${e.endTime}] ${e.text}`).join("\n");
+
+        const llmResult = await invokeLLM({
+          messages: [
+            { role: "system", content: `You are a professional film subtitle translator. Translate the following subtitles from ${source.languageName} to ${input.targetLanguageName}. Maintain the exact same timing. Keep translations natural and culturally appropriate. Preserve [sound descriptions] in brackets but translate them. Return as JSON with the same structure.` },
+            { role: "user", content: `Translate these subtitles to ${input.targetLanguageName}:\n\n${subtitleText}` },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "translated_entries",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  entries: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        startTime: { type: "number" },
+                        endTime: { type: "number" },
+                        text: { type: "string" },
+                      },
+                      required: ["startTime", "endTime", "text"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["entries"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = llmResult.choices[0]?.message?.content;
+        const parsed = JSON.parse(typeof content === "string" ? content : "");
+
+        return db.createSubtitle({
+          projectId: source.projectId,
+          userId: ctx.user.id,
+          language: input.targetLanguage,
+          languageName: input.targetLanguageName,
+          entries: parsed.entries,
+          isGenerated: 1,
+          isTranslation: 1,
+          sourceLanguage: source.language,
+        });
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

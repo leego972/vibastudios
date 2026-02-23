@@ -17,6 +17,9 @@ import CreditsEditor from "./pages/CreditsEditor";
 import ShotList from "./pages/ShotList";
 import ContinuityCheck from "./pages/ContinuityCheck";
 import ColorGrading from "./pages/ColorGrading";
+import LocationScout from "./pages/LocationScout";
+import MoodBoard from "./pages/MoodBoard";
+import Subtitles from "./pages/Subtitles";
 
 function Router() {
   return (
@@ -28,6 +31,9 @@ function Router() {
       <Route path="/project/:projectId/shot-list" component={ShotList} />
       <Route path="/project/:projectId/continuity" component={ContinuityCheck} />
       <Route path="/project/:projectId/color-grading" component={ColorGrading} />
+      <Route path="/projects/:id/locations" component={LocationScout} />
+      <Route path="/projects/:id/mood-board" component={MoodBoard} />
+      <Route path="/projects/:id/subtitles" component={Subtitles} />
       <Route>
         <DashboardLayout>
           <Switch>
