@@ -113,8 +113,26 @@ function elementsToScript(elements: ScriptElement[]): string {
 export default function ScriptWriter() {
   const { projectId, scriptId } = useParams<{ projectId: string; scriptId?: string }>();
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const pid = parseInt(projectId || "0");
+
+  // Auth guard — redirect to login if not authenticated
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">Please sign in to access the Script Writer.</p>
+        <Button onClick={() => navigate("/")}>Go to Login</Button>
+      </div>
+    );
+  }
 
   const [elements, setElements] = useState<ScriptElement[]>([
     { id: crypto.randomUUID(), type: "scene-heading", text: "" },

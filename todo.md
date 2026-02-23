@@ -120,3 +120,8 @@
 - [x] Add light theme CSS variables with proper contrast
 - [x] Add theme toggle button in sidebar/header
 - [x] Ensure all pages look good in both light and dark modes
+
+## Bug Fixes
+- [x] Ensure no login loop exists in auth flow
+- [x] Unauthenticated users should see login screen without redirect loops
+- [x] ScriptWriter page auth guard added (was outside DashboardLayout)
