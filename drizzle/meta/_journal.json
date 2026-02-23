@@ -71,6 +71,13 @@
       "when": 1771872461261,
       "tag": "0009_bouncy_iron_lad",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1771882492800,
+      "tag": "0010_wakeful_jackpot",
+      "breakpoints": true
     }
   ]
 }

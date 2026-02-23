@@ -323,3 +323,26 @@ export const collaborators = mysqlTable("collaborators", {
 
 export type Collaborator = typeof collaborators.$inferSelect;
 export type InsertCollaborator = typeof collaborators.$inferInsert;
+
+// My Movies library
+export const movies = mysqlTable("movies", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  projectId: int("projectId"), // optional link to a project
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  type: mysqlEnum("movieType", ["scene", "trailer", "film"]).notNull().default("scene"),
+  fileUrl: text("fileUrl"), // S3 URL for the video file
+  fileKey: varchar("fileKey", { length: 512 }), // S3 key
+  thumbnailUrl: text("thumbnailUrl"), // poster/thumbnail image
+  thumbnailKey: varchar("thumbnailKey", { length: 512 }),
+  duration: int("duration"), // in seconds
+  fileSize: int("fileSize"), // in bytes
+  mimeType: varchar("mimeType", { length: 128 }).default("video/mp4"),
+  tags: json("tags"), // array of string tags
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Movie = typeof movies.$inferSelect;
+export type InsertMovie = typeof movies.$inferInsert;

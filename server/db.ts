@@ -16,6 +16,7 @@ import {
   InsertBudget, budgets,
   InsertSoundEffect, soundEffects,
   InsertCollaborator, collaborators,
+  InsertMovie, movies,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -691,4 +692,39 @@ export async function deleteCollaborator(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(collaborators).where(eq(collaborators.id, id));
+}
+
+// ─── Movies ───
+export async function createMovie(data: InsertMovie) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(movies).values(data);
+  const id = result[0].insertId;
+  return (await db.select().from(movies).where(eq(movies.id, id)))[0];
+}
+
+export async function getUserMovies(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(movies).where(eq(movies.userId, userId)).orderBy(desc(movies.updatedAt));
+}
+
+export async function getMovieById(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(movies).where(and(eq(movies.id, id), eq(movies.userId, userId))).limit(1);
+  return result[0];
+}
+
+export async function updateMovie(id: number, userId: number, data: Partial<InsertMovie>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(movies).set(data).where(and(eq(movies.id, id), eq(movies.userId, userId)));
+  return (await db.select().from(movies).where(eq(movies.id, id)))[0];
+}
+
+export async function deleteMovie(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(movies).where(and(eq(movies.id, id), eq(movies.userId, userId)));
 }

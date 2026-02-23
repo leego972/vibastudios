@@ -30,6 +30,8 @@ import {
   PanelLeft,
   Sun,
   Moon,
+  Clapperboard,
+  ShieldX,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -37,9 +39,12 @@ import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
+const ALLOWED_EMAILS = ['leego972@gmail.com'];
+
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Film, label: "Projects", path: "/projects" },
+  { icon: Clapperboard, label: "My Movies", path: "/movies" },
   { icon: Users, label: "Characters", path: "/characters" },
 ];
 
@@ -57,7 +62,7 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user } = useAuth();
+  const { loading, user, logout } = useAuth();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -88,6 +93,31 @@ export default function DashboardLayout({
             className="w-full"
           >
             Sign in
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Access denied for non-whitelisted emails
+  if (!ALLOWED_EMAILS.includes(user.email?.toLowerCase() ?? '')) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
+          <div className="flex flex-col items-center gap-2">
+            <ShieldX className="h-16 w-16 text-destructive mb-2" />
+            <span className="text-2xl font-semibold tracking-tight">Access Denied</span>
+            <p className="text-sm text-muted-foreground text-center max-w-sm">
+              This application is currently invite-only. Your account ({user.email}) does not have access.
+            </p>
+          </div>
+          <Button
+            onClick={logout}
+            variant="outline"
+            size="lg"
+            className="w-full"
+          >
+            Sign out
           </Button>
         </div>
       </div>

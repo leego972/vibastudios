@@ -299,10 +299,24 @@
 - [x] Update local git remote URL
 
 ## Railway Deployment (Live)
-- [ ] Install Railway CLI and authenticate
-- [ ] Create Railway project
-- [ ] Add MySQL database
-- [ ] Deploy service from GitHub repo
-- [ ] Configure environment variables
-- [ ] Add virelle.life custom domain
+- [x] Install Railway CLI and authenticate
+- [x] Create Railway project
+- [x] Add MySQL database
+- [x] Deploy service from GitHub repo
+- [x] Configure environment variables
+- [x] Add virelle.life custom domain
 - [ ] Provide exact GoDaddy DNS settings
+
+## Access Restriction
+- [x] Restrict app access to leego972@gmail.com only
+- [x] Block login for all other emails with clear error message
+- [x] Add email whitelist check in backend protectedProcedure
+
+## My Movies Library
+- [x] Create movies table in database (title, type: scene/trailer/film, fileUrl, thumbnailUrl, projectId, duration, fileSize, description)
+- [x] Backend CRUD for movies (list, upload, delete, download)
+- [x] My Movies page with grid/list view
+- [x] Filter by type (scenes, trailers, full films)
+- [x] Video preview/playback
+- [x] Download button for each movie
+- [x] Add My Movies to sidebar navigation

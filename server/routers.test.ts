@@ -10,7 +10,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: any[] } {
   const user: AuthenticatedUser = {
     id: 1,
     openId: "test-user-123",
-    email: "director@virelle.studio",
+    email: "leego972@gmail.com",
     name: "Test Director",
     loginMethod: "manus",
     role: "user",
@@ -55,7 +55,7 @@ describe("auth.me", () => {
     const result = await caller.auth.me();
     expect(result).toBeTruthy();
     expect(result?.name).toBe("Test Director");
-    expect(result?.email).toBe("director@virelle.studio");
+    expect(result?.email).toBe("leego972@gmail.com");
   });
 
   it("returns null for unauthenticated user", async () => {
@@ -918,5 +918,162 @@ describe("collaboration router", () => {
     await expect(
       caller.collaboration.remove({ id: 1 })
     ).rejects.toThrow();
+  });
+});
+
+// ─── Access Restriction (Email Whitelist) ───
+describe("email whitelist access restriction", () => {
+  it("allows whitelisted email to access protected procedures", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Should not throw - leego972@gmail.com is whitelisted
+    const result = await caller.auth.me();
+    expect(result).toBeTruthy();
+    expect(result?.email).toBe("leego972@gmail.com");
+  });
+
+  it("blocks non-whitelisted email from protected procedures", async () => {
+    const clearedCookies: any[] = [];
+    const user: AuthenticatedUser = {
+      id: 2,
+      openId: "other-user-456",
+      email: "unauthorized@example.com",
+      name: "Unauthorized User",
+      loginMethod: "manus",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    };
+    const ctx: TrpcContext = {
+      user,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: {
+        clearCookie: (name: string, options: Record<string, unknown>) => {
+          clearedCookies.push({ name, options });
+        },
+      } as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+    // Protected procedures should throw FORBIDDEN
+    await expect(caller.movie.list()).rejects.toThrow();
+  });
+
+  it("blocks null email from protected procedures", async () => {
+    const user: AuthenticatedUser = {
+      id: 3,
+      openId: "null-email-user",
+      email: null,
+      name: "No Email User",
+      loginMethod: "manus",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    };
+    const ctx: TrpcContext = {
+      user,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: { clearCookie: () => {} } as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.movie.list()).rejects.toThrow();
+  });
+});
+
+// ─── My Movies ───
+describe("movie router", () => {
+  it("requires authentication for movie.list", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.movie.list()).rejects.toThrow();
+  });
+
+  it("requires authentication for movie.get", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.movie.get({ id: 1 })).rejects.toThrow();
+  });
+
+  it("requires authentication for movie.create", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.movie.create({ title: "Test", type: "scene" })
+    ).rejects.toThrow();
+  });
+
+  it("validates movie.create input - title required", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.movie.create({ title: "", type: "scene" })
+    ).rejects.toThrow();
+  });
+
+  it("validates movie.create input - type enum", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.movie.create({ title: "Test", type: "documentary" as any })
+    ).rejects.toThrow();
+  });
+
+  it("validates movie.create input - valid types accepted", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Valid types should pass validation and succeed (DB is available in test)
+    const result = await caller.movie.create({ title: "Test Movie", type: "scene" });
+    expect(result).toBeTruthy();
+    expect(result.title).toBe("Test Movie");
+    expect(result.type).toBe("scene");
+  });
+
+  it("requires authentication for movie.upload", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.movie.upload({
+        movieId: 1,
+        fileName: "test.mp4",
+        fileBase64: "dGVzdA==",
+        contentType: "video/mp4",
+      })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for movie.uploadThumbnail", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.movie.uploadThumbnail({
+        movieId: 1,
+        fileName: "thumb.jpg",
+        fileBase64: "dGVzdA==",
+        contentType: "image/jpeg",
+      })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for movie.update", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.movie.update({ id: 1, title: "Updated" })
+    ).rejects.toThrow();
+  });
+
+  it("validates movie.update input - type enum", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.movie.update({ id: 1, type: "miniseries" as any })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for movie.delete", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.movie.delete({ id: 1 })).rejects.toThrow();
   });
 });

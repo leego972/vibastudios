@@ -24,6 +24,7 @@ import DialogueEditor from "./pages/DialogueEditor";
 import BudgetEstimator from "./pages/BudgetEstimator";
 import SoundEffects from "./pages/SoundEffects";
 import Collaboration from "./pages/Collaboration";
+import Movies from "./pages/Movies";
 
 function Router() {
   return (
@@ -50,6 +51,7 @@ function Router() {
             <Route path="/projects/new" component={NewProject} />
             <Route path="/projects/:id" component={ProjectDetail} />
             <Route path="/projects/:id/scenes" component={SceneEditor} />
+            <Route path="/movies" component={Movies} />
             <Route path="/characters" component={Characters} />
             <Route path="/404" component={NotFound} />
             <Route component={NotFound} />

@@ -1928,5 +1928,99 @@ Generate a detailed production budget estimate.`,
         return { success: true };
       }),
   }),
+
+  // ─── My Movies ───
+  movie: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserMovies(ctx.user.id);
+    }),
+
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        return db.getMovieById(input.id, ctx.user.id);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(255),
+        description: z.string().optional(),
+        type: z.enum(["scene", "trailer", "film"]),
+        projectId: z.number().optional(),
+        duration: z.number().optional(),
+        tags: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return db.createMovie({
+          userId: ctx.user.id,
+          title: input.title,
+          description: input.description,
+          type: input.type,
+          projectId: input.projectId,
+          duration: input.duration,
+          tags: input.tags ?? [],
+        });
+      }),
+
+    upload: protectedProcedure
+      .input(z.object({
+        movieId: z.number(),
+        fileName: z.string(),
+        fileBase64: z.string(),
+        contentType: z.string().default("video/mp4"),
+        fileSize: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const suffix = nanoid(8);
+        const fileKey = `movies/${ctx.user.id}/${input.movieId}/${input.fileName}-${suffix}`;
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const { url } = await storagePut(fileKey, buffer, input.contentType);
+        return db.updateMovie(input.movieId, ctx.user.id, {
+          fileUrl: url,
+          fileKey,
+          fileSize: input.fileSize ?? buffer.length,
+          mimeType: input.contentType,
+        });
+      }),
+
+    uploadThumbnail: protectedProcedure
+      .input(z.object({
+        movieId: z.number(),
+        fileName: z.string(),
+        fileBase64: z.string(),
+        contentType: z.string().default("image/jpeg"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const suffix = nanoid(8);
+        const fileKey = `movies/${ctx.user.id}/${input.movieId}/thumb-${input.fileName}-${suffix}`;
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const { url } = await storagePut(fileKey, buffer, input.contentType);
+        return db.updateMovie(input.movieId, ctx.user.id, {
+          thumbnailUrl: url,
+          thumbnailKey: fileKey,
+        });
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).max(255).optional(),
+        description: z.string().optional(),
+        type: z.enum(["scene", "trailer", "film"]).optional(),
+        duration: z.number().optional(),
+        tags: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        return db.updateMovie(id, ctx.user.id, data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await db.deleteMovie(input.id, ctx.user.id);
+        return { success: true };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;

@@ -1,4 +1,4 @@
-import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
+import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG, NOT_WHITELISTED_ERR_MSG, ALLOWED_EMAILS } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
@@ -15,6 +15,11 @@ const requireUser = t.middleware(async opts => {
 
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  }
+
+  // Email whitelist check
+  if (!ALLOWED_EMAILS.includes((ctx.user.email ?? '').toLowerCase())) {
+    throw new TRPCError({ code: "FORBIDDEN", message: NOT_WHITELISTED_ERR_MSG });
   }
 
   return next({
