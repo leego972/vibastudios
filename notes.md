@@ -1,4 +1,12 @@
-# Build Notes
-- No TypeScript errors, no LSP errors, dev server running
+# Build Notes & Workflow Audit
+
+## Current Status
+- No TypeScript errors, dev server running
 - All features working: Dashboard, Projects, Characters, SceneEditor, ScriptWriter, Storyboard, Credits, ShotList, Continuity, ColorGrading, LocationScout, MoodBoard, Subtitles, DialogueEditor, BudgetEstimator
-- Need to add vitest tests for dialogue and budget features then push to GitHub
+
+## Remaining Work
+- Build Sound Effects Library page (backend done)
+- Build Collaboration page (backend done)
+- Add Railway deployment config (Dockerfile, railway.toml)
+- Standardize route patterns (/project vs /projects)
+- Add Storyboard quick-access to project header

@@ -75,7 +75,7 @@ export default function DashboardLayout({
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-2 mb-4">
               <Clapperboard className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-semibold tracking-tight">VIBA Studios</span>
+              <span className="text-2xl font-semibold tracking-tight">Virelle Studios</span>
             </div>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
               AI-powered film production studio. Sign in to start creating.
@@ -178,7 +178,7 @@ function DashboardLayoutContent({
                 <div className="flex items-center gap-2 min-w-0">
                   <Clapperboard className="h-5 w-5 text-primary shrink-0" />
                   <span className="font-semibold tracking-tight truncate text-sm">
-                    VIBA Studios
+                    Virelle Studios
                   </span>
                 </div>
               )}
@@ -279,7 +279,7 @@ function DashboardLayoutContent({
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9 rounded-lg" />
               <Clapperboard className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">VIBA Studios</span>
+              <span className="text-sm font-medium">Virelle Studios</span>
             </div>
             {switchable && (
               <button

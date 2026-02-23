@@ -282,3 +282,44 @@ export const budgets = mysqlTable("budgets", {
 
 export type Budget = typeof budgets.$inferSelect;
 export type InsertBudget = typeof budgets.$inferInsert;
+
+// Sound effects library
+export const soundEffects = mysqlTable("soundEffects", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  sceneId: int("sceneId"), // null = project-level / library
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  category: varchar("category", { length: 128 }).notNull(), // footsteps, weather, vehicles, weapons, nature, ambient, etc.
+  fileUrl: text("fileUrl"), // S3 URL for uploaded or preset audio
+  fileKey: varchar("fileKey", { length: 512 }),
+  duration: float("duration"), // in seconds
+  isCustom: int("isCustom").default(0), // 0 = preset, 1 = custom uploaded
+  volume: float("volume").default(0.8), // 0.0 - 1.0
+  startTime: float("startTime").default(0), // when to play in the scene
+  loop: int("loop").default(0), // 0 = no loop, 1 = loop
+  tags: json("tags"), // array of string tags
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SoundEffect = typeof soundEffects.$inferSelect;
+export type InsertSoundEffect = typeof soundEffects.$inferInsert;
+
+// Project collaborators
+export const collaborators = mysqlTable("collaborators", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  userId: int("userId"), // null until invite is accepted
+  invitedBy: int("invitedBy").notNull(),
+  email: varchar("email", { length: 320 }),
+  inviteToken: varchar("inviteToken", { length: 128 }).notNull().unique(),
+  role: mysqlEnum("collabRole", ["viewer", "editor", "producer", "director"]).default("editor").notNull(),
+  status: mysqlEnum("inviteStatus", ["pending", "accepted", "declined"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Collaborator = typeof collaborators.$inferSelect;
+export type InsertCollaborator = typeof collaborators.$inferInsert;

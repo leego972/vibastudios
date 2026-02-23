@@ -242,3 +242,46 @@
 - [x] Visual budget distribution bar chart and expandable categories
 - [x] AI analysis summary with recommendations
 - [x] Link to project detail Tools tab
+
+## Sound Effects Library
+- [x] SoundEffects table in database (projectId, sceneId, name, category, fileUrl, duration, isCustom, isPreset, volume, startTime, tags)
+- [x] Backend CRUD for sound effects + S3 upload for custom sounds
+- [x] Standard preset sound effects library (footsteps, rain, thunder, wind, traffic, explosions, doors, glass, crowd, birds, ocean, fire, etc.)
+- [x] Sound Effects page with category browsing and search
+- [x] Custom sound upload with audio preview
+- [x] Assign sound effects to specific scenes
+- [x] Volume and timing controls per effect
+- [x] Audio preview/playback for all sounds
+- [x] Link to project detail Tools tab
+
+## Project Collaboration
+- [x] Collaborators table in database (projectId, userId, role, invitedBy, inviteToken, status)
+- [x] Backend routes: invite collaborator, accept invite, list collaborators, remove collaborator, update role
+- [x] Collaboration page with team member list and role management
+- [x] Invite link generation with unique tokens
+- [x] Collaborator roles: viewer, editor, producer, director
+- [x] Accept invite flow for new collaborators
+- [x] Link to project detail Tools tab
+
+## Production Workflow Audit
+- [x] Audit full user journey: project creation → story → characters → scenes → generation → export
+- [x] Ensure logical flow between Quick Generate and Manual modes
+- [x] Verify all tools are accessible at the right stage of production
+- [x] Scene editor has comprehensive parameters (time, weather, lighting, camera, location, real estate, vehicles, mood)
+- [x] Story inputs are thorough (main plot, side plots, twists, arcs, themes, setting, opening, climax, resolution)
+- [x] All tools accessible from project detail Tools tab
+
+## Rename to Virelle Studios
+- [x] Rename all occurrences of "VIBA Studios" to "Virelle Studios" in codebase
+- [x] Rename all occurrences of "VIBA" to "Virelle" in codebase
+- [ ] Rename GitHub repo from vibastudios to virellestudios
+- [x] Update title in index.html and DashboardLayout
+
+## Railway Deployment Config
+- [x] Add Dockerfile for production build
+- [x] Add railway.toml configuration
+- [x] Add .dockerignore
+- [x] Ensure build works for Railway deployment
+
+## Domain Setup
+- [x] Add DEPLOYMENT.md with Railway + GoDaddy DNS instructions for Virelle.life

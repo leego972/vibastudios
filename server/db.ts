@@ -14,6 +14,8 @@ import {
   InsertSubtitle, subtitles,
   InsertDialogue, dialogues,
   InsertBudget, budgets,
+  InsertSoundEffect, soundEffects,
+  InsertCollaborator, collaborators,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -618,4 +620,75 @@ export async function deleteBudget(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(budgets).where(eq(budgets.id, id));
+}
+
+// ─── Sound Effects ───
+export async function createSoundEffect(data: InsertSoundEffect) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(soundEffects).values(data);
+  const rows = await db.select().from(soundEffects).where(eq(soundEffects.projectId, data.projectId)).orderBy(soundEffects.id);
+  return rows[rows.length - 1];
+}
+
+export async function listSoundEffectsByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(soundEffects).where(eq(soundEffects.projectId, projectId)).orderBy(soundEffects.category, soundEffects.name);
+}
+
+export async function listSoundEffectsByScene(sceneId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(soundEffects).where(eq(soundEffects.sceneId, sceneId)).orderBy(soundEffects.startTime);
+}
+
+export async function updateSoundEffect(id: number, data: Partial<InsertSoundEffect>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(soundEffects).set(data).where(eq(soundEffects.id, id));
+  const rows = await db.select().from(soundEffects).where(eq(soundEffects.id, id));
+  return rows[0];
+}
+
+export async function deleteSoundEffect(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(soundEffects).where(eq(soundEffects.id, id));
+}
+
+// ─── Collaborators ───
+export async function createCollaborator(data: InsertCollaborator) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(collaborators).values(data);
+  const rows = await db.select().from(collaborators).where(eq(collaborators.inviteToken, data.inviteToken));
+  return rows[0];
+}
+
+export async function listCollaboratorsByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(collaborators).where(eq(collaborators.projectId, projectId)).orderBy(collaborators.createdAt);
+}
+
+export async function getCollaboratorByToken(token: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(collaborators).where(eq(collaborators.inviteToken, token));
+  return rows[0];
+}
+
+export async function updateCollaborator(id: number, data: Partial<InsertCollaborator>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(collaborators).set(data).where(eq(collaborators.id, id));
+  const rows = await db.select().from(collaborators).where(eq(collaborators.id, id));
+  return rows[0];
+}
+
+export async function deleteCollaborator(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(collaborators).where(eq(collaborators.id, id));
 }

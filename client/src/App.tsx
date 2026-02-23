@@ -22,6 +22,8 @@ import MoodBoard from "./pages/MoodBoard";
 import Subtitles from "./pages/Subtitles";
 import DialogueEditor from "./pages/DialogueEditor";
 import BudgetEstimator from "./pages/BudgetEstimator";
+import SoundEffects from "./pages/SoundEffects";
+import Collaboration from "./pages/Collaboration";
 
 function Router() {
   return (
@@ -38,6 +40,8 @@ function Router() {
       <Route path="/projects/:id/subtitles" component={Subtitles} />
       <Route path="/projects/:projectId/dialogue" component={DialogueEditor} />
       <Route path="/projects/:projectId/budget" component={BudgetEstimator} />
+      <Route path="/projects/:id/sound-effects" component={SoundEffects} />
+      <Route path="/projects/:id/collaboration" component={Collaboration} />
       <Route>
         <DashboardLayout>
           <Switch>

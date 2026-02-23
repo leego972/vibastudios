@@ -10,7 +10,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: any[] } {
   const user: AuthenticatedUser = {
     id: 1,
     openId: "test-user-123",
-    email: "director@viba.studio",
+    email: "director@virelle.studio",
     name: "Test Director",
     loginMethod: "manus",
     role: "user",
@@ -55,7 +55,7 @@ describe("auth.me", () => {
     const result = await caller.auth.me();
     expect(result).toBeTruthy();
     expect(result?.name).toBe("Test Director");
-    expect(result?.email).toBe("director@viba.studio");
+    expect(result?.email).toBe("director@virelle.studio");
   });
 
   it("returns null for unauthenticated user", async () => {
@@ -750,6 +750,173 @@ describe("budget router", () => {
     const caller = appRouter.createCaller(ctx);
     await expect(
       caller.budget.delete({ id: 1 })
+    ).rejects.toThrow();
+  });
+});
+
+// ─── Sound Effect Router Tests ───
+describe("soundEffect router", () => {
+  it("requires authentication for soundEffect.list", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.list({ projectId: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for soundEffect.listByScene", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.listByScene({ sceneId: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for soundEffect.create", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.create({ projectId: 1, name: "Thunder", category: "weather" })
+    ).rejects.toThrow();
+  });
+
+  it("validates soundEffect.create input - name required", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.create({ projectId: 1, name: "", category: "weather" })
+    ).rejects.toThrow();
+  });
+
+  it("validates soundEffect.create input - category required", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.create({ projectId: 1, name: "Thunder", category: "" })
+    ).rejects.toThrow();
+  });
+
+  it("validates soundEffect.create input - volume range", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.create({ projectId: 1, name: "Thunder", category: "weather", volume: 2 })
+    ).rejects.toThrow();
+    await expect(
+      caller.soundEffect.create({ projectId: 1, name: "Thunder", category: "weather", volume: -1 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for soundEffect.upload", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.upload({ projectId: 1, fileName: "test.mp3", fileData: "abc", contentType: "audio/mpeg" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for soundEffect.update", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.update({ id: 1, volume: 0.5 })
+    ).rejects.toThrow();
+  });
+
+  it("validates soundEffect.update input - volume range", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.update({ id: 1, volume: 2 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for soundEffect.delete", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.soundEffect.delete({ id: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("returns preset sound effects library", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    const presets = await caller.soundEffect.presets();
+    expect(Array.isArray(presets)).toBe(true);
+    expect(presets.length).toBeGreaterThan(50);
+    // Verify preset structure
+    const first = presets[0];
+    expect(first).toHaveProperty("name");
+    expect(first).toHaveProperty("category");
+    expect(first).toHaveProperty("tags");
+    expect(Array.isArray(first.tags)).toBe(true);
+  });
+});
+
+// ─── Collaboration Router Tests ───
+describe("collaboration router", () => {
+  it("requires authentication for collaboration.list", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.collaboration.list({ projectId: 1 })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for collaboration.invite", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.collaboration.invite({ projectId: 1, role: "editor" })
+    ).rejects.toThrow();
+  });
+
+  it("validates collaboration.invite input - role enum", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.collaboration.invite({ projectId: 1, role: "admin" as any })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for collaboration.accept", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.collaboration.accept({ token: "test-token" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for collaboration.decline", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.collaboration.decline({ token: "test-token" })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for collaboration.updateRole", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.collaboration.updateRole({ id: 1, role: "producer" })
+    ).rejects.toThrow();
+  });
+
+  it("validates collaboration.updateRole input - role enum", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.collaboration.updateRole({ id: 1, role: "superadmin" as any })
+    ).rejects.toThrow();
+  });
+
+  it("requires authentication for collaboration.remove", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.collaboration.remove({ id: 1 })
     ).rejects.toThrow();
   });
 });

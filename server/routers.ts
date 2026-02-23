@@ -1715,7 +1715,218 @@ Generate a detailed production budget estimate.`,
         await db.deleteBudget(input.id);
         return { success: true };
       }),
+   }),
+
+  // ─── Sound Effects Library ───
+  soundEffect: router({
+    list: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ input }) => {
+        return db.listSoundEffectsByProject(input.projectId);
+      }),
+    listByScene: protectedProcedure
+      .input(z.object({ sceneId: z.number() }))
+      .query(async ({ input }) => {
+        return db.listSoundEffectsByScene(input.sceneId);
+      }),
+    create: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        sceneId: z.number().optional(),
+        name: z.string().min(1),
+        category: z.string().min(1),
+        fileUrl: z.string().optional(),
+        fileKey: z.string().optional(),
+        duration: z.number().optional(),
+        isCustom: z.number().optional(),
+        volume: z.number().min(0).max(1).optional(),
+        startTime: z.number().optional(),
+        loop: z.number().optional(),
+        tags: z.array(z.string()).optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return db.createSoundEffect({ ...input, userId: ctx.user!.id });
+      }),
+    upload: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        fileName: z.string(),
+        fileData: z.string(), // base64
+        contentType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const buffer = Buffer.from(input.fileData, "base64");
+        const key = `sfx/${ctx.user!.id}/${input.projectId}/${nanoid()}-${input.fileName}`;
+        const { url } = await storagePut(key, buffer, input.contentType);
+        return { url, key };
+      }),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        sceneId: z.number().optional().nullable(),
+        name: z.string().optional(),
+        volume: z.number().min(0).max(1).optional(),
+        startTime: z.number().optional(),
+        loop: z.number().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateSoundEffect(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteSoundEffect(input.id);
+        return { success: true };
+      }),
+    // Standard preset library
+    presets: publicProcedure.query(() => {
+      return [
+        // Footsteps
+        { name: "Footsteps - Concrete", category: "footsteps", tags: ["walk", "urban", "street"] },
+        { name: "Footsteps - Gravel", category: "footsteps", tags: ["outdoor", "path", "crunch"] },
+        { name: "Footsteps - Wood Floor", category: "footsteps", tags: ["indoor", "house", "creak"] },
+        { name: "Footsteps - Running", category: "footsteps", tags: ["fast", "chase", "action"] },
+        { name: "Footsteps - High Heels", category: "footsteps", tags: ["click", "elegant", "indoor"] },
+        { name: "Footsteps - Snow", category: "footsteps", tags: ["crunch", "winter", "cold"] },
+        // Weather
+        { name: "Light Rain", category: "weather", tags: ["drizzle", "gentle", "calm"] },
+        { name: "Heavy Rain", category: "weather", tags: ["downpour", "storm", "intense"] },
+        { name: "Thunder Crack", category: "weather", tags: ["storm", "loud", "dramatic"] },
+        { name: "Thunder Rolling", category: "weather", tags: ["distant", "rumble", "atmosphere"] },
+        { name: "Wind Howling", category: "weather", tags: ["strong", "eerie", "outdoor"] },
+        { name: "Wind Gentle Breeze", category: "weather", tags: ["soft", "calm", "nature"] },
+        { name: "Hailstorm", category: "weather", tags: ["ice", "pelting", "intense"] },
+        // Nature
+        { name: "Birds Chirping", category: "nature", tags: ["morning", "forest", "peaceful"] },
+        { name: "Ocean Waves", category: "nature", tags: ["beach", "calm", "rhythmic"] },
+        { name: "River Stream", category: "nature", tags: ["water", "flowing", "nature"] },
+        { name: "Crickets Night", category: "nature", tags: ["evening", "rural", "ambient"] },
+        { name: "Wolf Howl", category: "nature", tags: ["night", "wild", "eerie"] },
+        { name: "Horse Gallop", category: "nature", tags: ["riding", "western", "fast"] },
+        { name: "Dog Barking", category: "nature", tags: ["pet", "alert", "domestic"] },
+        // Vehicles
+        { name: "Car Engine Start", category: "vehicles", tags: ["ignition", "motor", "drive"] },
+        { name: "Car Driving By", category: "vehicles", tags: ["pass", "road", "traffic"] },
+        { name: "Car Screech / Brakes", category: "vehicles", tags: ["stop", "emergency", "tires"] },
+        { name: "Car Crash", category: "vehicles", tags: ["accident", "impact", "metal"] },
+        { name: "Motorcycle Rev", category: "vehicles", tags: ["engine", "loud", "bike"] },
+        { name: "Helicopter", category: "vehicles", tags: ["chopper", "blades", "aerial"] },
+        { name: "Jet Flyover", category: "vehicles", tags: ["airplane", "fast", "loud"] },
+        { name: "Train Horn", category: "vehicles", tags: ["railway", "warning", "loud"] },
+        { name: "Boat Motor", category: "vehicles", tags: ["water", "engine", "marine"] },
+        // Impacts & Action
+        { name: "Explosion Large", category: "impacts", tags: ["blast", "boom", "action"] },
+        { name: "Explosion Small", category: "impacts", tags: ["pop", "burst", "minor"] },
+        { name: "Gunshot Single", category: "impacts", tags: ["weapon", "shot", "loud"] },
+        { name: "Gunshot Burst", category: "impacts", tags: ["automatic", "rapid", "action"] },
+        { name: "Punch Hit", category: "impacts", tags: ["fight", "body", "combat"] },
+        { name: "Glass Breaking", category: "impacts", tags: ["shatter", "crash", "window"] },
+        { name: "Metal Clang", category: "impacts", tags: ["hit", "ring", "sword"] },
+        { name: "Sword Clash", category: "impacts", tags: ["metal", "fight", "medieval"] },
+        { name: "Whip Crack", category: "impacts", tags: ["snap", "sharp", "fast"] },
+        // Doors & Interiors
+        { name: "Door Open Creak", category: "doors", tags: ["old", "horror", "slow"] },
+        { name: "Door Slam", category: "doors", tags: ["close", "loud", "angry"] },
+        { name: "Door Knock", category: "doors", tags: ["tap", "visitor", "entrance"] },
+        { name: "Door Lock / Unlock", category: "doors", tags: ["key", "click", "secure"] },
+        { name: "Elevator Ding", category: "doors", tags: ["bell", "arrive", "floor"] },
+        { name: "Window Open", category: "doors", tags: ["slide", "air", "room"] },
+        // Ambient
+        { name: "City Traffic", category: "ambient", tags: ["urban", "busy", "cars"] },
+        { name: "Crowd Murmur", category: "ambient", tags: ["people", "chatter", "background"] },
+        { name: "Restaurant Ambience", category: "ambient", tags: ["dining", "clinking", "chatter"] },
+        { name: "Office Ambience", category: "ambient", tags: ["typing", "phone", "work"] },
+        { name: "Hospital Ambience", category: "ambient", tags: ["beep", "intercom", "quiet"] },
+        { name: "Spaceship Hum", category: "ambient", tags: ["sci-fi", "engine", "space"] },
+        { name: "Underwater", category: "ambient", tags: ["bubbles", "muffled", "deep"] },
+        { name: "Forest Ambience", category: "ambient", tags: ["trees", "leaves", "peaceful"] },
+        // Electronic & UI
+        { name: "Phone Ringing", category: "electronic", tags: ["call", "ring", "alert"] },
+        { name: "Phone Vibrate", category: "electronic", tags: ["buzz", "notification", "silent"] },
+        { name: "Computer Beep", category: "electronic", tags: ["alert", "tech", "interface"] },
+        { name: "Alarm Clock", category: "electronic", tags: ["wake", "morning", "beep"] },
+        { name: "Camera Shutter", category: "electronic", tags: ["photo", "click", "snap"] },
+        { name: "Radio Static", category: "electronic", tags: ["noise", "tuning", "vintage"] },
+        // Horror & Suspense
+        { name: "Heartbeat", category: "horror", tags: ["pulse", "tension", "suspense"] },
+        { name: "Creepy Whisper", category: "horror", tags: ["voice", "eerie", "ghost"] },
+        { name: "Chains Rattling", category: "horror", tags: ["metal", "prison", "dark"] },
+        { name: "Scream Female", category: "horror", tags: ["terror", "loud", "fear"] },
+        { name: "Scream Male", category: "horror", tags: ["terror", "loud", "fear"] },
+        { name: "Eerie Drone", category: "horror", tags: ["atmosphere", "dark", "tension"] },
+        // Musical
+        { name: "Dramatic Stinger", category: "musical", tags: ["hit", "reveal", "impact"] },
+        { name: "Suspense Rise", category: "musical", tags: ["tension", "build", "climax"] },
+        { name: "Comic Boing", category: "musical", tags: ["funny", "cartoon", "bounce"] },
+        { name: "Sad Violin", category: "musical", tags: ["emotional", "cry", "drama"] },
+        { name: "Victory Fanfare", category: "musical", tags: ["win", "triumph", "celebration"] },
+        { name: "Clock Ticking", category: "musical", tags: ["time", "countdown", "tension"] },
+      ];
+    }),
+  }),
+
+  // ─── Project Collaboration ───
+  collaboration: router({
+    list: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ input }) => {
+        return db.listCollaboratorsByProject(input.projectId);
+      }),
+    invite: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        email: z.string().email().optional(),
+        role: z.enum(["viewer", "editor", "producer", "director"]).default("editor"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const token = nanoid(32);
+        const collab = await db.createCollaborator({
+          projectId: input.projectId,
+          invitedBy: ctx.user!.id,
+          email: input.email || null,
+          inviteToken: token,
+          role: input.role,
+          status: "pending",
+        });
+        return { collaborator: collab, inviteToken: token };
+      }),
+    accept: protectedProcedure
+      .input(z.object({ token: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const collab = await db.getCollaboratorByToken(input.token);
+        if (!collab) throw new Error("Invalid invite token");
+        if (collab.status !== "pending") throw new Error("Invite already used");
+        return db.updateCollaborator(collab.id, {
+          userId: ctx.user!.id,
+          status: "accepted",
+        });
+      }),
+    decline: protectedProcedure
+      .input(z.object({ token: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const collab = await db.getCollaboratorByToken(input.token);
+        if (!collab) throw new Error("Invalid invite token");
+        return db.updateCollaborator(collab.id, {
+          status: "declined",
+        });
+      }),
+    updateRole: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        role: z.enum(["viewer", "editor", "producer", "director"]),
+      }))
+      .mutation(async ({ input }) => {
+        return db.updateCollaborator(input.id, { role: input.role });
+      }),
+    remove: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteCollaborator(input.id);
+        return { success: true };
+      }),
   }),
 });
-
 export type AppRouter = typeof appRouter;
