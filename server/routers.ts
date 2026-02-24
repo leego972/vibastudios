@@ -2238,6 +2238,68 @@ Generate a detailed production budget estimate.`,
           duration: result.duration,
         };
       }),
+
+    voiceEditText: protectedProcedure
+      .input(z.object({
+        currentText: z.string().min(1).max(10000),
+        editCommand: z.string().min(1).max(2000),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `You are a text editor assistant for a film director. The director has dictated some text and now wants to edit it using voice commands.
+
+You will receive:
+1. The CURRENT TEXT that the director has dictated
+2. An EDIT COMMAND spoken by the director
+
+Your job is to apply the edit command to the current text and return the result.
+
+Common edit commands include:
+- "Replace X with Y" or "Change X to Y" — find and replace text
+- "Delete/Remove [text or description]" — remove specified text
+- "Add/Append [text] at the end" — add text to the end
+- "Insert [text] before/after [reference]" — insert at a specific position
+- "Undo" or "Revert" — cannot be handled, return the text unchanged
+- "Clear all" or "Start over" — return empty string
+- "Make it more [adjective]" — rewrite with that quality
+- "Fix grammar" or "Fix spelling" — correct errors
+- "Make it shorter" or "Make it longer" — adjust length
+- "Read it back" — return the text unchanged (the UI will handle display)
+
+Rules:
+- Return ONLY the edited text, nothing else
+- Do NOT add explanations, quotes, or markdown
+- Preserve the original meaning and intent unless the command explicitly changes it
+- If the command is unclear or cannot be applied, return the original text unchanged
+- If the command says "clear all" or "start over", return exactly: __CLEAR__`,
+            },
+            {
+              role: "user",
+              content: `CURRENT TEXT:\n"""\n${input.currentText}\n"""\n\nEDIT COMMAND: "${input.editCommand}"\n\nApply the edit and return only the resulting text:`,
+            },
+          ],
+        });
+
+        const rawContent = response.choices?.[0]?.message?.content;
+        const editedText = (typeof rawContent === "string" ? rawContent.trim() : input.currentText) || input.currentText;
+
+        // Handle special commands
+        if (editedText === "__CLEAR__") {
+          return { editedText: "", command: "clear", applied: true };
+        }
+
+        // Detect if text actually changed
+        const applied = editedText !== input.currentText;
+
+        return {
+          editedText,
+          command: input.editCommand,
+          applied,
+        };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

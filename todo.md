@@ -364,3 +364,11 @@
 - [x] Server-side Whisper transcription endpoint for audio-to-text
 - [x] Transcribed text auto-populates chat input for review before sending
 - [x] Tests for voice input functionality
+
+## Voice Edit Commands for Director's Chat
+- [x] Server-side LLM endpoint to interpret voice edit commands and apply text transformations
+- [x] Voice edit mode in DirectorChat UI — second mic tap when text exists triggers edit mode
+- [x] Visual indicators distinguishing voice-edit mode (purple/blue) from initial dictation (red)
+- [x] Edit confirmation flow showing diff/preview of changes before applying
+- [x] Support commands: replace X with Y, delete/remove, add/append, undo last edit, clear all, read back
+- [x] Tests for voice edit command processing

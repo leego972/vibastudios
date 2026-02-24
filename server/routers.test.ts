@@ -1193,4 +1193,75 @@ describe("directorChat router", () => {
       expect(e.code).not.toBe("BAD_REQUEST");
     }
   });
+
+  // ─── voiceEditText tests ───
+  it("requires authentication for directorChat.voiceEditText", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.directorChat.voiceEditText({
+        currentText: "Hello world",
+        editCommand: "replace world with universe",
+      })
+    ).rejects.toThrow();
+  });
+
+  it("validates directorChat.voiceEditText input - currentText required", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.directorChat.voiceEditText({
+        currentText: "",
+        editCommand: "replace world with universe",
+      })
+    ).rejects.toThrow();
+  });
+
+  it("validates directorChat.voiceEditText input - editCommand required", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.directorChat.voiceEditText({
+        currentText: "Hello world",
+        editCommand: "",
+      })
+    ).rejects.toThrow();
+  });
+
+  it("validates directorChat.voiceEditText input - currentText max length", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.directorChat.voiceEditText({
+        currentText: "a".repeat(10001),
+        editCommand: "fix grammar",
+      })
+    ).rejects.toThrow();
+  });
+
+  it("validates directorChat.voiceEditText input - editCommand max length", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.directorChat.voiceEditText({
+        currentText: "Hello world",
+        editCommand: "a".repeat(2001),
+      })
+    ).rejects.toThrow();
+  });
+
+  it("validates directorChat.voiceEditText input - missing fields", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      (caller.directorChat.voiceEditText as any)({
+        currentText: "Hello world",
+      })
+    ).rejects.toThrow();
+    await expect(
+      (caller.directorChat.voiceEditText as any)({
+        editCommand: "fix grammar",
+      })
+    ).rejects.toThrow();
+  });
 });
