@@ -1305,4 +1305,71 @@ describe("directorChat router", () => {
       })
     ).rejects.toThrow();
   });
+
+  // ─── Preset edit command tests ───
+  it("accepts preset 'Fix grammar' command via voiceEditText", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    try {
+      await caller.directorChat.voiceEditText({
+        currentText: "The quick brown fox jump over the lazy dog.",
+        editCommand: "Fix all grammar and spelling errors",
+      });
+    } catch (e: any) {
+      // Should not be a Zod validation error
+      expect(e.code).not.toBe("BAD_REQUEST");
+    }
+  });
+
+  it("accepts preset 'Make shorter' command via voiceEditText", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    try {
+      await caller.directorChat.voiceEditText({
+        currentText: "This is a very long and detailed description of a beautiful sunset over the ocean with waves crashing on the shore.",
+        editCommand: "Make it significantly shorter and more concise",
+      });
+    } catch (e: any) {
+      expect(e.code).not.toBe("BAD_REQUEST");
+    }
+  });
+
+  it("accepts preset 'More dramatic' command via voiceEditText", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    try {
+      await caller.directorChat.voiceEditText({
+        currentText: "A person walks through a forest.",
+        editCommand: "Rewrite to be more dramatic and cinematic",
+      });
+    } catch (e: any) {
+      expect(e.code).not.toBe("BAD_REQUEST");
+    }
+  });
+
+  it("accepts preset 'Professional' command via voiceEditText", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    try {
+      await caller.directorChat.voiceEditText({
+        currentText: "hey so like we need to get this done asap ok?",
+        editCommand: "Rewrite in a more professional and polished tone",
+      });
+    } catch (e: any) {
+      expect(e.code).not.toBe("BAD_REQUEST");
+    }
+  });
+
+  it("accepts preset 'Simplify' command via voiceEditText", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    try {
+      await caller.directorChat.voiceEditText({
+        currentText: "The cinematographic methodology employed herein utilizes a multifaceted approach.",
+        editCommand: "Simplify the language to be clearer and easier to understand",
+      });
+    } catch (e: any) {
+      expect(e.code).not.toBe("BAD_REQUEST");
+    }
+  });
 });

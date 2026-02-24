@@ -29,6 +29,10 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
+  Volume2,
+  VolumeX,
+  Wand2,
+  Keyboard,
 } from "lucide-react";
 
 interface DirectorChatProps {
@@ -48,6 +52,15 @@ interface EditHistoryEntry {
   afterText: string;
   timestamp: number;
 }
+
+// ─── Preset edit commands ───
+const EDIT_PRESETS = [
+  { label: "Fix grammar", command: "Fix all grammar and spelling errors", icon: "abc" },
+  { label: "Shorter", command: "Make it significantly shorter and more concise", icon: "min" },
+  { label: "More dramatic", command: "Rewrite to be more dramatic and cinematic", icon: "dra" },
+  { label: "Professional", command: "Rewrite in a more professional and polished tone", icon: "pro" },
+  { label: "Simplify", command: "Simplify the language to be clearer and easier to understand", icon: "sim" },
+] as const;
 
 function getFileIcon(mimeType: string) {
   if (mimeType.startsWith("image/")) return <ImageIcon className="size-4" />;
@@ -96,11 +109,9 @@ function computeWordDiff(oldText: string, newText: string): DiffSegment[] {
   const oldWords = oldText.split(/(\s+)/);
   const newWords = newText.split(/(\s+)/);
 
-  // Simple LCS-based diff
   const m = oldWords.length;
   const n = newWords.length;
 
-  // For performance, if texts are very long, fall back to simple comparison
   if (m * n > 50000) {
     if (oldText === newText) return [{ type: "equal", text: oldText }];
     return [
@@ -109,7 +120,6 @@ function computeWordDiff(oldText: string, newText: string): DiffSegment[] {
     ];
   }
 
-  // Build LCS table
   const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
@@ -121,7 +131,6 @@ function computeWordDiff(oldText: string, newText: string): DiffSegment[] {
     }
   }
 
-  // Backtrack to build diff
   const segments: DiffSegment[] = [];
   let i = m, j = n;
 
@@ -139,7 +148,6 @@ function computeWordDiff(oldText: string, newText: string): DiffSegment[] {
     }
   }
 
-  // Merge consecutive segments of the same type
   for (const seg of rawSegments) {
     const last = segments[segments.length - 1];
     if (last && last.type === seg.type) {
@@ -221,10 +229,22 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
   const [preEditText, setPreEditText] = useState("");
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
+  // TTS state
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Preset state
+  const [showPresets, setShowPresets] = useState(false);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
+  // Keyboard shortcut hint
+  const [showShortcutHint, setShowShortcutHint] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const chatPanelRef = useRef<HTMLDivElement>(null);
 
   // Fetch chat history
   const { data: history, isLoading: historyLoading } =
@@ -264,9 +284,7 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
   const transcribeMutation = trpc.directorChat.transcribeVoice.useMutation({
     onSuccess: (data) => {
       if (data.text && data.text.trim()) {
-        // Check if we were in edit mode
         if (voiceState === "transcribing" && preEditText) {
-          // This was an edit command — send to voiceEditText
           setVoiceState("applying_edit");
           voiceEditMutation.mutate({
             currentText: preEditText,
@@ -276,7 +294,6 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
           return;
         }
 
-        // Normal dictation — auto-populate the input
         setVoiceState("idle");
         setInput((prev) => {
           const newText = prev ? prev + " " + data.text.trim() : data.text.trim();
@@ -299,6 +316,7 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
   const voiceEditMutation = trpc.directorChat.voiceEditText.useMutation({
     onSuccess: (data) => {
       setVoiceState("idle");
+      setActivePreset(null);
       if (data.applied) {
         setPreviewText(data.editedText);
         setShowEditPreview(true);
@@ -309,6 +327,7 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
     },
     onError: (error) => {
       setVoiceState("idle");
+      setActivePreset(null);
       toast.error("Edit failed: " + error.message);
     },
   });
@@ -346,12 +365,15 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
     }
   }, [history]);
 
-  // Cleanup recording on unmount
+  // Cleanup recording and TTS on unmount
   useEffect(() => {
     return () => {
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
       }
     };
   }, []);
@@ -567,11 +589,9 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
     }
   }, [editHistory]);
 
-  // Revert to a specific point in edit history
   const revertToEdit = useCallback((entryId: number) => {
     const idx = editHistory.findIndex((e) => e.id === entryId);
     if (idx >= 0) {
-      // Revert to the state before this edit was applied
       const targetEntry = editHistory[idx];
       setInput(targetEntry.beforeText);
       setEditHistory((prev) => prev.slice(0, idx));
@@ -579,6 +599,173 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
       setTimeout(() => textareaRef.current?.focus(), 100);
     }
   }, [editHistory]);
+
+  // ─── Text-to-Speech (Read Back) ───
+  const speakText = useCallback((text: string) => {
+    if (!text.trim()) {
+      toast.info("No text to read back");
+      return;
+    }
+
+    if (!window.speechSynthesis) {
+      toast.error("Text-to-speech is not supported in this browser");
+      return;
+    }
+
+    // Stop any current speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    // Try to use a natural-sounding voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(
+      (v) => v.name.includes("Google") || v.name.includes("Samantha") || v.name.includes("Daniel") || v.name.includes("Natural")
+    );
+    if (preferred) {
+      utterance.voice = preferred;
+    }
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      speechSynthRef.current = null;
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      speechSynthRef.current = null;
+    };
+
+    speechSynthRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
+    speechSynthRef.current = null;
+  }, []);
+
+  const toggleReadBack = useCallback(() => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else {
+      speakText(input);
+    }
+  }, [isSpeaking, stopSpeaking, speakText, input]);
+
+  // ─── Preset Edit Commands ───
+  const applyPreset = useCallback((command: string, label: string) => {
+    if (!input.trim()) {
+      toast.info("Type or dictate some text first, then use presets to refine it");
+      return;
+    }
+
+    setActivePreset(label);
+    setPreEditText(input);
+    setLastEditCommand(label);
+    setVoiceState("applying_edit");
+    setShowPresets(false);
+
+    voiceEditMutation.mutate({
+      currentText: input,
+      editCommand: command,
+    });
+  }, [input, voiceEditMutation]);
+
+  // Derived state
+  const isRecording = voiceState === "recording" || voiceState === "recording_edit";
+
+  // ─── Keyboard Shortcuts ───
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === "TEXTAREA" || target.tagName === "INPUT" || target.isContentEditable;
+
+      // Escape — cancel recording or close edit preview
+      if (e.key === "Escape") {
+        if (isRecording) {
+          e.preventDefault();
+          cancelRecording();
+          return;
+        }
+        if (showEditPreview) {
+          e.preventDefault();
+          rejectEdit();
+          return;
+        }
+        if (isSpeaking) {
+          e.preventDefault();
+          stopSpeaking();
+          return;
+        }
+      }
+
+      // Don't trigger shortcuts while typing in textarea
+      if (isTyping) return;
+
+      // V — start voice recording (dictation or edit depending on context)
+      if (e.key === "v" || e.key === "V") {
+        if (voiceState === "idle" && !showEditPreview && !sendMutation.isPending) {
+          e.preventDefault();
+          if (input.trim()) {
+            startEditRecording();
+          } else {
+            startRecording();
+          }
+          return;
+        }
+      }
+
+      // S — stop recording
+      if ((e.key === "s" || e.key === "S") && isRecording) {
+        e.preventDefault();
+        stopRecording();
+        return;
+      }
+
+      // R — read back text
+      if ((e.key === "r" || e.key === "R") && voiceState === "idle" && !showEditPreview) {
+        e.preventDefault();
+        toggleReadBack();
+        return;
+      }
+
+      // A — accept edit preview
+      if ((e.key === "a" || e.key === "A") && showEditPreview) {
+        e.preventDefault();
+        acceptEdit();
+        return;
+      }
+
+      // Z — undo last edit
+      if ((e.key === "z" || e.key === "Z") && voiceState === "idle" && !showEditPreview && editHistory.length > 0) {
+        e.preventDefault();
+        undoLastEdit();
+        return;
+      }
+
+      // ? — toggle shortcut hints
+      if (e.key === "?") {
+        e.preventDefault();
+        setShowShortcutHint((prev) => !prev);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [
+    isOpen, voiceState, isRecording, showEditPreview, isSpeaking, input,
+    cancelRecording, rejectEdit, stopSpeaking, startRecording, startEditRecording,
+    stopRecording, toggleReadBack, acceptEdit, undoLastEdit, editHistory.length,
+    sendMutation.isPending,
+  ]);
 
   // Format seconds to mm:ss
   const formatDuration = (seconds: number) => {
@@ -597,6 +784,9 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed && attachments.length === 0) return;
+
+    // Stop any TTS
+    if (isSpeaking) stopSpeaking();
 
     const attachNames = attachments.map((a) => a.name).join(", ");
     const messageContent = trimmed
@@ -626,12 +816,13 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
     setEditIdCounter(0);
     setShowEditPreview(false);
     setShowHistoryPanel(false);
+    setShowPresets(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [input, attachments, projectId, sendMutation]);
+  }, [input, attachments, projectId, sendMutation, isSpeaking, stopSpeaking]);
 
-  // Handle keyboard
+  // Handle keyboard in textarea
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -654,7 +845,6 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
     "Review my project and suggest improvements",
   ];
 
-  const isRecording = voiceState === "recording" || voiceState === "recording_edit";
   const isBusy = sendMutation.isPending || voiceState !== "idle";
   const hasInputText = input.trim().length > 0;
 
@@ -677,6 +867,7 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
 
       {/* Chat panel */}
       <div
+        ref={chatPanelRef}
         className={cn(
           "fixed z-50 flex flex-col bg-background border border-border shadow-2xl transition-all duration-300 ease-out",
           "inset-0 sm:inset-auto",
@@ -704,6 +895,15 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
               variant="ghost"
               size="icon"
               className="size-8"
+              onClick={() => setShowShortcutHint((prev) => !prev)}
+              title="Keyboard shortcuts (?)"
+            >
+              <Keyboard className="size-4 text-muted-foreground" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
               onClick={() => clearMutation.mutate({ projectId })}
               title="Clear chat"
             >
@@ -719,6 +919,32 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
             </Button>
           </div>
         </div>
+
+        {/* Keyboard shortcut hint panel */}
+        {showShortcutHint && (
+          <div className="px-4 py-2.5 border-b bg-muted/30 text-xs space-y-1">
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-medium text-foreground">Keyboard Shortcuts</p>
+              <button
+                onClick={() => setShowShortcutHint(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+              <span><kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">V</kbd> Start recording</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">S</kbd> Stop recording</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">Esc</kbd> Cancel / Reject</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">R</kbd> Read back text</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">A</kbd> Accept edit</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">Z</kbd> Undo last edit</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60 mt-1">
+              Shortcuts work when the text input is not focused. Press <kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">?</kbd> to toggle.
+            </p>
+          </div>
+        )}
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto min-h-0" ref={scrollRef}>
@@ -838,7 +1064,10 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-red-400">Dictating...</p>
-                  <p className="text-xs text-muted-foreground">{formatDuration(recordingDuration)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDuration(recordingDuration)}
+                    <span className="ml-2 opacity-60">Press S to stop, Esc to cancel</span>
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -856,7 +1085,7 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
                   onClick={stopRecording}
                 >
                   <Square className="size-3 fill-current" />
-                  Stop & Transcribe
+                  Stop
                 </Button>
               </div>
             </div>
@@ -875,7 +1104,8 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
                 <div>
                   <p className="text-sm font-medium text-violet-400">Voice editing...</p>
                   <p className="text-xs text-muted-foreground">
-                    Chain commands: "replace X with Y and add Z at the end"
+                    Chain: "replace X with Y and add Z"
+                    <span className="ml-2 opacity-60">S to stop, Esc to cancel</span>
                   </p>
                 </div>
               </div>
@@ -894,7 +1124,7 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
                   onClick={stopRecording}
                 >
                   <Square className="size-3 fill-current" />
-                  Apply Edit
+                  Apply
                 </Button>
               </div>
             </div>
@@ -920,7 +1150,9 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
             <div className="flex items-center gap-3">
               <Loader2 className="size-4 animate-spin text-violet-500" />
               <div>
-                <p className="text-sm font-medium text-violet-400">Applying your edit...</p>
+                <p className="text-sm font-medium text-violet-400">
+                  {activePreset ? `Applying preset: ${activePreset}` : "Applying your edit..."}
+                </p>
                 <p className="text-xs text-muted-foreground">"{lastEditCommand}"</p>
               </div>
             </div>
@@ -960,7 +1192,9 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
             </div>
             <div className="flex items-center justify-between">
               <p className="text-[10px] text-muted-foreground">
-                Accept to apply, reject to keep original
+                <kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">A</kbd> accept
+                {" · "}
+                <kbd className="px-1 py-0.5 rounded bg-background border border-border text-[10px] font-mono">Esc</kbd> reject
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -1033,6 +1267,46 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
           </div>
         )}
 
+        {/* Quick edit presets — shown when text exists and idle */}
+        {hasInputText && voiceState === "idle" && !showEditPreview && (
+          <div className="border-t border-amber-500/10">
+            <button
+              onClick={() => setShowPresets((prev) => !prev)}
+              className="w-full px-4 py-2 flex items-center justify-between text-xs hover:bg-amber-500/5 transition-colors"
+            >
+              <div className="flex items-center gap-1.5 text-amber-400">
+                <Wand2 className="size-3" />
+                <span className="font-medium">Quick edits</span>
+              </div>
+              {showPresets ? (
+                <ChevronDown className="size-3 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="size-3 text-muted-foreground" />
+              )}
+            </button>
+            {showPresets && (
+              <div className="px-4 pb-2.5 flex flex-wrap gap-1.5">
+                {EDIT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => applyPreset(preset.command, preset.label)}
+                    disabled={voiceState !== "idle" || sendMutation.isPending}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all",
+                      "border border-amber-500/20 bg-amber-500/5 text-amber-400",
+                      "hover:bg-amber-500/15 hover:border-amber-500/30",
+                      "active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    )}
+                  >
+                    <Wand2 className="size-3" />
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Attachment preview */}
         {attachments.length > 0 && (
           <div className="px-4 py-2 border-t bg-muted/30 space-y-1.5">
@@ -1090,12 +1364,13 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
                 className="size-9 shrink-0 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 transition-all"
                 onClick={startEditRecording}
                 disabled={sendMutation.isPending || showEditPreview}
-                title="Voice edit — speak commands to edit your text (chain with 'and')"
+                title="Voice edit — speak commands to edit your text (V)"
               >
                 <Pencil className="size-4" />
               </Button>
             ) : null}
 
+            {/* Mic button */}
             <Button
               variant="ghost"
               size="icon"
@@ -1114,9 +1389,9 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
               disabled={voiceState === "transcribing" || voiceState === "applying_edit" || sendMutation.isPending || showEditPreview}
               title={
                 voiceState === "idle"
-                  ? "Dictate — speak your command"
+                  ? "Dictate — speak your command (V)"
                   : isRecording
-                  ? "Stop recording"
+                  ? "Stop recording (S)"
                   : "Processing..."
               }
             >
@@ -1129,6 +1404,29 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
               )}
             </Button>
 
+            {/* Read back button — shown when there's text */}
+            {hasInputText && voiceState === "idle" && !showEditPreview && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "size-9 shrink-0 transition-all",
+                  isSpeaking
+                    ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={toggleReadBack}
+                disabled={sendMutation.isPending}
+                title={isSpeaking ? "Stop reading (Esc)" : "Read back text (R)"}
+              >
+                {isSpeaking ? (
+                  <VolumeX className="size-4" />
+                ) : (
+                  <Volume2 className="size-4" />
+                )}
+              </Button>
+            )}
+
             {/* Undo button — shown when edit history exists */}
             {editHistory.length > 0 && voiceState === "idle" && !showEditPreview && (
               <Button
@@ -1137,7 +1435,7 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
                 className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
                 onClick={undoLastEdit}
                 disabled={sendMutation.isPending}
-                title="Undo last voice edit"
+                title="Undo last voice edit (Z)"
               >
                 <Undo2 className="size-4" />
               </Button>
@@ -1157,8 +1455,8 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
                   : showEditPreview
                   ? "Review the edit above..."
                   : hasInputText
-                  ? "Edit text or tap the pencil to voice-edit..."
-                  : "Type or tap the mic to speak..."
+                  ? "Edit text or press V to voice-edit..."
+                  : "Type, press V to speak, or tap the mic..."
               }
               className={cn(
                 "flex-1 min-h-[42px] max-h-[160px] resize-none text-sm rounded-xl py-2.5 px-3",
@@ -1188,8 +1486,8 @@ export default function DirectorChat({ projectId }: DirectorChatProps) {
           </div>
           <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
             {hasInputText && voiceState === "idle"
-              ? "Tap the pencil to voice-edit — chain commands with 'and'"
-              : "Type, speak, or upload — actions execute in real-time"}
+              ? "V to voice-edit · R to read back · Quick edits above"
+              : "Type, press V to speak, or upload — actions execute in real-time"}
           </p>
         </div>
       </div>

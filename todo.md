@@ -378,3 +378,9 @@
 - [x] Voice command chaining — support multiple edits in one recording (e.g. "replace X with Y and add Z at the end")
 - [x] Voice command history panel — log of all voice edits with selective revert for individual changes
 - [x] Tests for all three voice edit enhancements
+
+## Voice UX Enhancements
+- [x] Keyboard shortcuts for voice actions — hold V to start recording, Esc to cancel, S to stop
+- [x] Read-back text-to-speech — tap speaker button or press R to hear current text aloud
+- [x] Quick-tap voice edit presets — buttons: Fix grammar, Shorter, More dramatic, Professional, Simplify
+- [x] Tests for keyboard shortcuts, TTS, and preset buttons
