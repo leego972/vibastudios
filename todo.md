@@ -384,3 +384,6 @@
 - [x] Read-back text-to-speech — tap speaker button or press R to hear current text aloud
 - [x] Quick-tap voice edit presets — buttons: Fix grammar, Shorter, More dramatic, Professional, Simplify
 - [x] Tests for keyboard shortcuts, TTS, and preset buttons
+
+## Bug Fixes
+- [x] Investigate and fix deployment issue — removed hardcoded email allowlist that blocked non-whitelisted users

@@ -37,9 +37,6 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { toast } from "sonner";
-
-const ALLOWED_EMAILS = ['leego972@gmail.com'];
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -64,19 +61,9 @@ export default function DashboardLayout({
   });
   const { loading, user, logout } = useAuth();
 
-  const isAllowed = !user || ALLOWED_EMAILS.includes(user.email?.toLowerCase() ?? '');
-
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
-
-  useEffect(() => {
-    if (user && !isAllowed) {
-      logout().then(() => {
-        toast.error('Access restricted. This application is invite-only.');
-      });
-    }
-  }, [user, isAllowed, logout]);
 
   if (loading) {
     return <DashboardLayoutSkeleton />;
@@ -107,10 +94,6 @@ export default function DashboardLayout({
         </div>
       </div>
     );
-  }
-
-  if (!isAllowed) {
-    return <DashboardLayoutSkeleton />;
   }
 
   return (
