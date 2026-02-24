@@ -1,4 +1,3 @@
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -37,6 +36,8 @@ export function useAuth(options?: UseAuthOptions) {
     } finally {
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
+      // Redirect to login after logout
+      window.location.href = "/login";
     }
   }, [logoutMutation, utils]);
 
@@ -65,9 +66,9 @@ export function useAuth(options?: UseAuthOptions) {
     if (state.user) return;
     if (typeof window === "undefined") return;
 
-    // Lazily compute the redirect path only when actually needed
-    const target = redirectPath ?? getLoginUrl();
-    if (window.location.pathname === target) return;
+    const target = redirectPath ?? "/login";
+    const currentPath = window.location.pathname;
+    if (currentPath === target || currentPath === "/login" || currentPath === "/register") return;
 
     window.location.href = target;
   }, [

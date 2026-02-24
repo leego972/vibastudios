@@ -11,6 +11,8 @@ import { nanoid } from "nanoid";
 import { processDirectorMessage } from "./directorAssistant";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { TRPCError } from "@trpc/server";
+import bcrypt from "bcryptjs";
+import { createSessionToken } from "./_core/context";
 
 export const appRouter = router({
   system: systemRouter,
@@ -21,6 +23,54 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+    register: publicProcedure
+      .input(z.object({
+        email: z.string().email().max(320),
+        password: z.string().min(8).max(128),
+        name: z.string().min(1).max(255),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Check if user already exists
+        const existing = await db.getUserByEmail(input.email.toLowerCase());
+        if (existing) {
+          throw new TRPCError({ code: "CONFLICT", message: "An account with this email already exists" });
+        }
+        // Hash password and create user
+        const passwordHash = await bcrypt.hash(input.password, 12);
+        const user = await db.createEmailUser({
+          email: input.email.toLowerCase(),
+          name: input.name,
+          passwordHash,
+        });
+        if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create account" });
+        // Create session
+        const token = await createSessionToken(user.id, user.name ?? "");
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: 1000 * 60 * 60 * 24 * 365 });
+        return { success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
+      }),
+    login: publicProcedure
+      .input(z.object({
+        email: z.string().email().max(320),
+        password: z.string().min(1).max(128),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const user = await db.getUserByEmail(input.email.toLowerCase());
+        if (!user || !user.passwordHash) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" });
+        }
+        const valid = await bcrypt.compare(input.password, user.passwordHash);
+        if (!valid) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" });
+        }
+        // Update last signed in
+        await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
+        // Create session
+        const token = await createSessionToken(user.id, user.name ?? "");
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: 1000 * 60 * 60 * 24 * 365 });
+        return { success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
+      }),
   }),
 
   // ─── Projects ───

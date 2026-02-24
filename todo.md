@@ -387,6 +387,21 @@
 
 ## Bug Fixes
 - [x] Investigate and fix deployment issue — removed hardcoded email allowlist that blocked non-whitelisted users
-- [ ] Fix TypeError: Failed to construct URL on Railway — getLoginUrl() crashes when VITE_OAUTH_PORTAL_URL is missing
-- [ ] Fix useAuth eagerly calling getLoginUrl() as default param
+- [x] Fix TypeError: Failed to construct URL on Railway — getLoginUrl() crashes when VITE_OAUTH_PORTAL_URL is missing
+- [x] Fix useAuth eagerly calling getLoginUrl() as default param
 - [ ] Guide user on Railway custom domain re-configuration for virelle.life
+
+## Remove Manus OAuth / Standalone Auth
+- [ ] Remove all Manus OAuth dependencies and references
+- [ ] Add password hash column to users table in schema
+- [ ] Implement server-side email/password register endpoint
+- [ ] Implement server-side email/password login endpoint
+- [ ] Implement JWT session management independent of Manus SDK
+- [ ] Build login page UI
+- [ ] Build register page UI
+- [ ] Update useAuth hook to work without Manus OAuth
+- [ ] Update DashboardLayout auth flow
+- [ ] Update main.tsx to remove OAuth redirect logic
+- [ ] Update App.tsx routing for login/register pages
+- [ ] Write tests for new auth system
+- [ ] Push to GitHub for Railway deployment

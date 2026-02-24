@@ -12,6 +12,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: any[] } {
     openId: "test-user-123",
     email: "leego972@gmail.com",
     name: "Test Director",
+    passwordHash: null,
     loginMethod: "manus",
     role: "user",
     createdAt: new Date(),
@@ -921,58 +922,19 @@ describe("collaboration router", () => {
   });
 });
 
-// ─── Access Restriction (Email Whitelist) ───
-describe("email whitelist access restriction", () => {
-  it("allows whitelisted email to access protected procedures", async () => {
+// ─── Auth (any authenticated user can access protected procedures) ───
+describe("auth access control", () => {
+  it("allows any authenticated user to access protected procedures", async () => {
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
-    // Should not throw - leego972@gmail.com is whitelisted
     const result = await caller.auth.me();
     expect(result).toBeTruthy();
     expect(result?.email).toBe("leego972@gmail.com");
   });
 
-  it("blocks non-whitelisted email from protected procedures", async () => {
-    const clearedCookies: any[] = [];
-    const user: AuthenticatedUser = {
-      id: 2,
-      openId: "other-user-456",
-      email: "unauthorized@example.com",
-      name: "Unauthorized User",
-      loginMethod: "manus",
-      role: "user",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastSignedIn: new Date(),
-    };
+  it("blocks unauthenticated users from protected procedures", async () => {
     const ctx: TrpcContext = {
-      user,
-      req: { protocol: "https", headers: {} } as TrpcContext["req"],
-      res: {
-        clearCookie: (name: string, options: Record<string, unknown>) => {
-          clearedCookies.push({ name, options });
-        },
-      } as TrpcContext["res"],
-    };
-    const caller = appRouter.createCaller(ctx);
-    // Protected procedures should throw FORBIDDEN
-    await expect(caller.movie.list()).rejects.toThrow();
-  });
-
-  it("blocks null email from protected procedures", async () => {
-    const user: AuthenticatedUser = {
-      id: 3,
-      openId: "null-email-user",
-      email: null,
-      name: "No Email User",
-      loginMethod: "manus",
-      role: "user",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastSignedIn: new Date(),
-    };
-    const ctx: TrpcContext = {
-      user,
+      user: null,
       req: { protocol: "https", headers: {} } as TrpcContext["req"],
       res: { clearCookie: () => {} } as TrpcContext["res"],
     };
@@ -1373,3 +1335,67 @@ describe("directorChat router", () => {
     }
   });
 });
+
+
+// ─── Email Auth Tests ───
+describe("auth.register", () => {
+  it("rejects registration with missing fields", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.register({ email: "", password: "12345678", name: "Test" })
+    ).rejects.toThrow();
+  });
+
+  it("rejects registration with short password", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.register({ email: "test@test.com", password: "short", name: "Test" })
+    ).rejects.toThrow();
+  });
+
+  it("rejects registration with invalid email", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.register({ email: "not-an-email", password: "12345678", name: "Test" })
+    ).rejects.toThrow();
+  });
+});
+
+describe("auth.login", () => {
+  it("rejects login with missing fields", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.login({ email: "", password: "12345678" })
+    ).rejects.toThrow();
+  });
+
+  it("rejects login with invalid email format", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.login({ email: "not-an-email", password: "12345678" })
+    ).rejects.toThrow();
+  });
+});
+
+function createPublicContext(): { ctx: TrpcContext; setCookies: any[] } {
+  const setCookies: any[] = [];
+  const ctx: TrpcContext = {
+    user: null,
+    req: {
+      protocol: "https",
+      headers: {},
+    } as TrpcContext["req"],
+    res: {
+      clearCookie: () => {},
+      cookie: (name: string, value: string, options: Record<string, unknown>) => {
+        setCookies.push({ name, value, options });
+      },
+    } as unknown as TrpcContext["res"],
+  };
+  return { ctx, setCookies };
+}

@@ -25,10 +25,15 @@ import BudgetEstimator from "./pages/BudgetEstimator";
 import SoundEffects from "./pages/SoundEffects";
 import Collaboration from "./pages/Collaboration";
 import Movies from "./pages/Movies";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 function Router() {
   return (
     <Switch>
+      {/* Auth pages (no layout) */}
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
       {/* Full-screen pages (own layout) */}
       <Route path="/projects/:projectId/script/:scriptId" component={ScriptWriter} />
       <Route path="/projects/:projectId/storyboard" component={Storyboard} />

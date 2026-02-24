@@ -5,7 +5,6 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { getLoginUrl } from "./const";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -15,17 +14,13 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (typeof window === "undefined") return;
 
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
-
   if (!isUnauthorized) return;
 
-  try {
-    const loginUrl = getLoginUrl();
-    if (loginUrl && loginUrl !== "/login-unavailable") {
-      window.location.href = loginUrl;
-    }
-  } catch {
-    console.warn("[Auth] Could not construct login URL. OAuth may not be configured.");
-  }
+  // Don't redirect if already on login/register page
+  const path = window.location.pathname;
+  if (path === "/login" || path === "/register") return;
+
+  window.location.href = "/login";
 };
 
 queryClient.getQueryCache().subscribe(event => {

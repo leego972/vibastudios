@@ -19,7 +19,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -70,30 +69,9 @@ export default function DashboardLayout({
   }
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex flex-col items-center gap-3 mb-4">
-              <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663313597286/dwVZvrRZfbSYrwld.png" alt="Virelle Studios" className="h-24 w-24 rounded-lg" />
-              <span className="text-2xl font-semibold tracking-tight">Virelle Studios</span>
-            </div>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              AI-powered film production studio. Sign in to start creating.
-            </p>
-          </div>
-          <Button
-            onClick={() => {
-              window.location.href = getLoginUrl();
-            }}
-            size="lg"
-            className="w-full"
-          >
-            Sign in
-          </Button>
-        </div>
-      </div>
-    );
+    // Redirect to login page
+    window.location.href = "/login";
+    return <DashboardLayoutSkeleton />;
   }
 
   return (
