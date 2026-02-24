@@ -1382,6 +1382,140 @@ describe("auth.login", () => {
   });
 });
 
+describe("auth.requestPasswordReset", () => {
+  it("returns success message even for non-existent email (no info leak)", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.auth.requestPasswordReset({ email: "nonexistent@test.com" });
+    expect(result.success).toBe(true);
+    expect(result.message).toContain("If an account");
+  });
+
+  it("rejects invalid email format", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.requestPasswordReset({ email: "not-an-email" })
+    ).rejects.toThrow();
+  });
+});
+
+describe("auth.validateResetToken", () => {
+  it("returns invalid for non-existent token", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.auth.validateResetToken({ token: "fake-token-12345" });
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects empty token", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.validateResetToken({ token: "" })
+    ).rejects.toThrow();
+  });
+});
+
+describe("auth.resetPassword", () => {
+  it("rejects invalid token", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.resetPassword({ token: "fake-token", newPassword: "newpass123" })
+    ).rejects.toThrow("Invalid or expired reset token");
+  });
+
+  it("rejects short password", async () => {
+    const { ctx } = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.auth.resetPassword({ token: "some-token", newPassword: "short" })
+    ).rejects.toThrow();
+  });
+});
+
+describe("admin.listUsers", () => {
+  it("allows admin to list users", async () => {
+    const { ctx } = createAdminContext();
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.admin.listUsers();
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it("rejects non-admin users", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.admin.listUsers()).rejects.toThrow("Admin access required");
+  });
+
+  it("rejects unauthenticated users", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.admin.listUsers()).rejects.toThrow();
+  });
+});
+
+describe("admin.updateUserRole", () => {
+  it("rejects non-admin users", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.admin.updateUserRole({ userId: 2, role: "admin" })
+    ).rejects.toThrow("Admin access required");
+  });
+
+  it("prevents admin from changing own role", async () => {
+    const { ctx } = createAdminContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.admin.updateUserRole({ userId: 1, role: "user" })
+    ).rejects.toThrow("Cannot change your own role");
+  });
+
+  it("rejects unauthenticated users", async () => {
+    const ctx = createUnauthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.admin.updateUserRole({ userId: 2, role: "admin" })
+    ).rejects.toThrow();
+  });
+
+  it("rejects invalid role values", async () => {
+    const { ctx } = createAdminContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.admin.updateUserRole({ userId: 2, role: "superadmin" as any })
+    ).rejects.toThrow();
+  });
+});
+
+function createAdminContext(): { ctx: TrpcContext; clearedCookies: any[] } {
+  const clearedCookies: any[] = [];
+  const user: AuthenticatedUser = {
+    id: 1,
+    openId: "admin-user-123",
+    email: "admin@virelle.life",
+    name: "Admin Director",
+    passwordHash: null,
+    loginMethod: "email",
+    role: "admin",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastSignedIn: new Date(),
+  };
+  const ctx: TrpcContext = {
+    user,
+    req: { protocol: "https", headers: {} } as TrpcContext["req"],
+    res: {
+      clearCookie: (name: string, options: Record<string, unknown>) => {
+        clearedCookies.push({ name, options });
+      },
+    } as TrpcContext["res"],
+  };
+  return { ctx, clearedCookies };
+}
+
 function createPublicContext(): { ctx: TrpcContext; setCookies: any[] } {
   const setCookies: any[] = [];
   const ctx: TrpcContext = {

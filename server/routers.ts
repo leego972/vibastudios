@@ -13,6 +13,7 @@ import { transcribeAudio } from "./_core/voiceTranscription";
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import { createSessionToken } from "./_core/context";
+import { notifyOwner } from "./_core/notification";
 
 export const appRouter = router({
   system: systemRouter,
@@ -70,6 +71,64 @@ export const appRouter = router({
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: 1000 * 60 * 60 * 24 * 365 });
         return { success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
+      }),
+    requestPasswordReset: publicProcedure
+      .input(z.object({ email: z.string().email().max(320) }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserByEmail(input.email.toLowerCase());
+        if (!user) {
+          // Don't reveal if email exists
+          return { success: true, message: "If an account with that email exists, a reset link has been sent." };
+        }
+        const token = nanoid(64);
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+        await db.createPasswordResetToken(user.id, token, expiresAt);
+        // Notify owner with the reset link
+        await notifyOwner({
+          title: "Password Reset Requested",
+          content: `User ${user.email} requested a password reset.\nReset token: ${token}\nExpires: ${expiresAt.toISOString()}\n\nShare this link with the user: [your-domain]/reset-password?token=${token}`,
+        });
+        return { success: true, message: "If an account with that email exists, a reset link has been sent." };
+      }),
+    validateResetToken: publicProcedure
+      .input(z.object({ token: z.string().min(1) }))
+      .query(async ({ input }) => {
+        const record = await db.getPasswordResetToken(input.token);
+        if (!record || record.used || new Date() > record.expiresAt) {
+          return { valid: false };
+        }
+        return { valid: true };
+      }),
+    resetPassword: publicProcedure
+      .input(z.object({
+        token: z.string().min(1),
+        newPassword: z.string().min(8).max(128),
+      }))
+      .mutation(async ({ input }) => {
+        const record = await db.getPasswordResetToken(input.token);
+        if (!record || record.used || new Date() > record.expiresAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired reset token" });
+        }
+        const passwordHash = await bcrypt.hash(input.newPassword, 12);
+        await db.updateUserPassword(record.userId, passwordHash);
+        await db.markTokenUsed(record.id);
+        return { success: true };
+      }),
+  }),
+
+  // ─── Admin ───
+  admin: router({
+    listUsers: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      return db.getAllUsers();
+    }),
+    updateUserRole: protectedProcedure
+      .input(z.object({ userId: z.number(), role: z.enum(["user", "admin"]) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+        if (input.userId === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot change your own role" });
+        await db.updateUserRole(input.userId, input.role);
+        return { success: true };
       }),
   }),
 

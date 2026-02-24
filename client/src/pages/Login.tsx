@@ -109,6 +109,9 @@ export default function Login() {
                   "Sign in"
                 )}
               </Button>
+              <Link href="/forgot-password" className="text-sm text-amber-500 hover:text-amber-400 font-medium text-center">
+                Forgot your password?
+              </Link>
               <p className="text-sm text-muted-foreground text-center">
                 Don't have an account?{" "}
                 <Link href="/register" className="text-amber-500 hover:text-amber-400 font-medium">

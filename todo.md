@@ -405,3 +405,23 @@
 - [x] Update App.tsx routing for login/register pages
 - [x] Write tests for new auth system
 - [x] Push to GitHub for Railway deployment
+
+## Forgot Password Flow
+- [ ] Add passwordResetTokens table to schema (userId, token, expiresAt, used)
+- [ ] Backend endpoint to request password reset (generates token, notifies owner)
+- [ ] Backend endpoint to validate reset token
+- [ ] Backend endpoint to reset password with valid token
+- [ ] Forgot Password UI page (enter email)
+- [ ] Reset Password UI page (enter new password with token from URL)
+- [ ] Link from Login page to Forgot Password page
+
+## Admin User Management
+- [ ] Admin-only tRPC endpoints: list users, update user role, deactivate/reactivate user
+- [ ] Admin Users page with user table (name, email, role, status, joined date)
+- [ ] Role assignment dropdown (user/admin)
+- [ ] Deactivate/reactivate toggle per user
+- [ ] Add Admin section to sidebar (visible only to admin role)
+- [ ] Tests for admin user management endpoints
+
+## Domain Re-configuration
+- [ ] Guide user on re-configuring virelle.life custom domain in Railway

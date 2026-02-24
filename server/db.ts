@@ -18,6 +18,7 @@ import {
   InsertCollaborator, collaborators,
   InsertMovie, movies,
   InsertDirectorChat, directorChats,
+  InsertPasswordResetToken, passwordResetTokens,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -782,4 +783,61 @@ export async function clearProjectChat(projectId: number, userId: number) {
   if (!db) return;
   await db.delete(directorChats)
     .where(and(eq(directorChats.projectId, projectId), eq(directorChats.userId, userId)));
+}
+
+
+// ─── Password Reset Tokens ───
+export async function createPasswordResetToken(userId: number, token: string, expiresAt: Date) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(passwordResetTokens).values({ userId, token, expiresAt });
+  return { userId, token, expiresAt };
+}
+
+export async function getPasswordResetToken(token: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(passwordResetTokens)
+    .where(eq(passwordResetTokens.token, token))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function markTokenUsed(tokenId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(passwordResetTokens)
+    .set({ used: true })
+    .where(eq(passwordResetTokens.id, tokenId));
+}
+
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+}
+
+// ─── Admin User Management ───
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    role: users.role,
+    loginMethod: users.loginMethod,
+    createdAt: users.createdAt,
+    lastSignedIn: users.lastSignedIn,
+  }).from(users).orderBy(desc(users.createdAt));
+}
+
+export async function updateUserRole(userId: number, role: "user" | "admin") {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users)
+    .set({ role, updatedAt: new Date() })
+    .where(eq(users.id, userId));
 }

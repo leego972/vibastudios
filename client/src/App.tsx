@@ -27,6 +27,9 @@ import Collaboration from "./pages/Collaboration";
 import Movies from "./pages/Movies";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import AdminUsers from "./pages/AdminUsers";
 
 function Router() {
   return (
@@ -34,6 +37,8 @@ function Router() {
       {/* Auth pages (no layout) */}
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       {/* Full-screen pages (own layout) */}
       <Route path="/projects/:projectId/script/:scriptId" component={ScriptWriter} />
       <Route path="/projects/:projectId/storyboard" component={Storyboard} />
@@ -58,6 +63,7 @@ function Router() {
             <Route path="/projects/:id/scenes" component={SceneEditor} />
             <Route path="/movies" component={Movies} />
             <Route path="/characters" component={Characters} />
+            <Route path="/admin/users" component={AdminUsers} />
             <Route path="/404" component={NotFound} />
             <Route component={NotFound} />
           </Switch>
