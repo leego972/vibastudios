@@ -2270,7 +2270,7 @@ Generate a detailed production budget estimate.`,
     }),
   }),
   // ─── Project Collaboration ───
-  collaboration: router({{
+  collaboration: router({
     list: protectedProcedure
       .input(z.object({ projectId: z.number() }))
       .query(async ({ input }) => {

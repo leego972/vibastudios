@@ -50,7 +50,7 @@ import {
   X,
 } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "wouter";
 import { toast } from "sonner";
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
