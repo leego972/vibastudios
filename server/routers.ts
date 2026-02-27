@@ -11,6 +11,7 @@ import { nanoid } from "nanoid";
 import { processDirectorMessage } from "./directorAssistant";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { TRPCError } from "@trpc/server";
+import { buildVisualDNA, buildScenePrompt, buildSceneBreakdownSystemPrompt, buildTrailerPrompt, ENHANCED_SCENE_SCHEMA } from "./_core/cinematicPromptEngine";
 import bcrypt from "bcryptjs";
 import { createSessionToken } from "./_core/context";
 import { notifyOwner } from "./_core/notification";
@@ -570,33 +571,47 @@ export const appRouter = router({
     // Generate a preview image for a single scene
     generatePreview: protectedProcedure
       .input(z.object({ sceneId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         const scene = await db.getSceneById(input.sceneId);
         if (!scene) throw new Error("Scene not found");
 
-        // Build a cinematic prompt from scene parameters
-        const parts: string[] = [
-          "Cinematic Hollywood film still,",
-          scene.description || "dramatic scene",
-        ];
-        if (scene.timeOfDay) parts.push(`${scene.timeOfDay} lighting`);
-        if (scene.weather && scene.weather !== "clear") parts.push(`${scene.weather} weather`);
-        if (scene.lighting) parts.push(`${scene.lighting} lighting setup`);
-        if (scene.cameraAngle) parts.push(`${scene.cameraAngle} shot`);
-        if (scene.locationType) parts.push(`location: ${scene.locationType}`);
-        if (scene.realEstateStyle) parts.push(`setting: ${scene.realEstateStyle}`);
-        if (scene.vehicleType && scene.vehicleType !== "None") parts.push(`featuring a ${scene.vehicleType}`);
-        if (scene.mood) parts.push(`${scene.mood} mood`);
-        parts.push("photorealistic, 8k, cinematic color grading, professional cinematography");
+        // Get project and characters for Visual DNA
+        const project = await db.getProjectById(scene.projectId, ctx.user.id);
+        const characters = project ? await db.getProjectCharacters(project.id) : [];
 
-        const prompt = parts.join(", ");
+        // Build Visual DNA for consistent style
+        const visualDNA = project
+          ? buildVisualDNA(project, characters)
+          : buildVisualDNA({ title: "Untitled", genre: "Drama" }, []);
 
-        // Get character photos if any
+        // Get all scenes for context
+        const allScenes = project ? await db.getProjectScenes(project.id) : [];
+        const sceneIdx = allScenes.findIndex(s => s.id === scene.id);
+
+        // Build rich cinematic prompt
+        const prompt = buildScenePrompt(
+          scene,
+          visualDNA,
+          {
+            sceneIndex: sceneIdx >= 0 ? sceneIdx : 0,
+            totalScenes: allScenes.length || 1,
+            previousSceneDescription: sceneIdx > 0 ? (allScenes[sceneIdx - 1]?.description || undefined) : undefined,
+            characterNames: characters.map(c => c.name),
+          }
+        );
+
+        // Get character photos for reference
         const characterIds = (scene.characterIds as number[]) || [];
         const originalImages: Array<{ url: string; mimeType: string }> = [];
         for (const cId of characterIds) {
           const char = await db.getCharacterById(cId);
           if (char?.photoUrl) {
+            originalImages.push({ url: char.photoUrl, mimeType: "image/jpeg" });
+          }
+        }
+        // Also include all project character photos for consistency
+        for (const char of characters) {
+          if (char.photoUrl && !originalImages.find(img => img.url === char.photoUrl)) {
             originalImages.push({ url: char.photoUrl, mimeType: "image/jpeg" });
           }
         }
@@ -622,16 +637,39 @@ export const appRouter = router({
         const scenesNeedingImages = scenes.filter(s => !s.thumbnailUrl);
         if (scenesNeedingImages.length === 0) return { generated: 0, total: scenes.length };
 
+        // Build Visual DNA for consistent style across all bulk-generated images
         const characters = await db.getProjectCharacters(project.id);
-        const charLookup = Object.fromEntries(characters.map(c => [c.name, c]));
+        const visualDNA = buildVisualDNA(project, characters);
+
+        // Collect character photos for reference
+        const characterPhotos: Array<{ url: string; mimeType: string }> = [];
+        for (const char of characters) {
+          if (char.photoUrl) {
+            characterPhotos.push({ url: char.photoUrl, mimeType: "image/jpeg" });
+          }
+        }
+
         let generated = 0;
         const BATCH = 4;
         for (let i = 0; i < scenesNeedingImages.length; i += BATCH) {
           const batch = scenesNeedingImages.slice(i, i + BATCH);
           await Promise.allSettled(batch.map(async (scene) => {
             try {
-              const prompt = `Cinematic film still, ${scene.description}, ${scene.lighting || "natural"} lighting, ${scene.cameraAngle || "medium"} shot, ${scene.mood || "dramatic"} mood, ${scene.weather || "clear"} weather, ${scene.timeOfDay || "afternoon"}, photorealistic, shot on ARRI ALEXA 65, 8K, film grain, professional color grading`;
-              const result = await generateImage({ prompt });
+              const sceneIdx = scenes.findIndex(s => s.id === scene.id);
+              const prompt = buildScenePrompt(
+                scene,
+                visualDNA,
+                {
+                  sceneIndex: sceneIdx >= 0 ? sceneIdx : 0,
+                  totalScenes: scenes.length,
+                  previousSceneDescription: sceneIdx > 0 ? (scenes[sceneIdx - 1]?.description || undefined) : undefined,
+                  characterNames: characters.map(c => c.name),
+                }
+              );
+              const result = await generateImage({
+                prompt,
+                originalImages: characterPhotos.length > 0 ? characterPhotos : undefined,
+              });
               await db.updateScene(scene.id, { thumbnailUrl: result.url });
               generated++;
             } catch (e) {
@@ -662,6 +700,7 @@ export const appRouter = router({
   // ─── Generation ───
   generation: router({
     // Quick generate: AI creates full film from plot + characters
+    // Enhanced with Visual DNA system and Cinematic Prompt Engine
     quickGenerate: protectedProcedure
       .input(z.object({ projectId: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -685,19 +724,59 @@ export const appRouter = router({
 
         try {
 
-        // Use LLM to break down the plot into scenes
+        // ── Step 1: Build Visual DNA for consistent style across all scenes ──
         const characters = await db.getProjectCharacters(project.id);
-        const charDescriptions = characters.map(c => `${c.name}: ${c.description || "no description"}`).join("\n");
+        const visualDNA = buildVisualDNA(project, characters);
+
+        const charDescriptions = characters.map(c => {
+          const attrs = (c.attributes as any) || {};
+          const parts = [`${c.name}`];
+          if (c.description) parts.push(`— ${c.description}`);
+          if (attrs.age || attrs.ageRange || attrs.estimatedAge) parts.push(`Age: ${attrs.age || attrs.ageRange || attrs.estimatedAge}`);
+          if (attrs.gender) parts.push(`Gender: ${attrs.gender}`);
+          if (attrs.ethnicity) parts.push(`Ethnicity: ${attrs.ethnicity}`);
+          if (attrs.build) parts.push(`Build: ${attrs.build}`);
+          if (attrs.hairColor) parts.push(`Hair: ${attrs.hairColor} ${attrs.hairStyle || ""}`.trim());
+          if (attrs.eyeColor) parts.push(`Eyes: ${attrs.eyeColor}`);
+          if (attrs.clothingStyle) parts.push(`Style: ${attrs.clothingStyle}`);
+          return parts.join(". ");
+        }).join("\n");
+
+        // ── Step 2: Enhanced LLM scene breakdown with cinematic intelligence ──
+        const systemPrompt = buildSceneBreakdownSystemPrompt(project);
 
         const llmResult = await invokeLLM({
           messages: [
             {
               role: "system",
-              content: `You are a Hollywood film director AI. Given a plot summary, break it down into individual scenes for a ${project.duration || 90}-minute ${project.rating || "PG-13"} rated ${project.genre || "Drama"} film. Return JSON with an array of scenes.`,
+              content: systemPrompt,
             },
             {
               role: "user",
-              content: `Plot: ${project.plotSummary || project.description || "A compelling story"}\n\nCharacters:\n${charDescriptions}\n\nBreak this into 8-15 scenes. For each scene provide: title, description, timeOfDay (dawn/morning/afternoon/evening/night/golden-hour), weather (clear/cloudy/rainy/stormy/snowy/foggy/windy), lighting (natural/dramatic/soft/neon/candlelight/studio/backlit/silhouette), cameraAngle (wide/medium/close-up/extreme-close-up/birds-eye/low-angle/dutch-angle/over-shoulder/pov), locationType, mood, and estimatedDuration in seconds.`,
+              content: `Plot: ${project.plotSummary || project.description || "A compelling story"}
+
+Characters:
+${charDescriptions}
+
+Break this into 8-15 scenes. For each scene, provide:
+- title: Scene title
+- description: What happens narratively (2-3 sentences)
+- visualDescription: EXACTLY what the camera sees — specific details about environment, character positions, expressions, lighting quality, colors, textures, foreground/background elements (3-5 sentences, be extremely specific and visual)
+- timeOfDay: dawn/morning/afternoon/evening/night/golden-hour
+- weather: clear/cloudy/rainy/stormy/snowy/foggy/windy
+- lighting: natural/dramatic/soft/neon/candlelight/studio/backlit/silhouette
+- cameraAngle: wide/medium/close-up/extreme-close-up/birds-eye/low-angle/dutch-angle/over-shoulder/pov
+- locationType: specific location description
+- mood: emotional tone of the scene
+- estimatedDuration: duration in seconds
+- colorPalette: dominant colors in this scene (e.g. "warm amber and deep shadow", "cold steel blue with red accents")
+- focalLength: suggested lens (e.g. "24mm wide", "85mm portrait", "135mm telephoto")
+- depthOfField: "deep focus", "shallow f/1.4", "medium f/2.8", etc.
+- foregroundElements: what's in the foreground of the frame
+- backgroundElements: what's visible in the background
+- characterAction: what the characters are physically doing
+- emotionalBeat: the emotional turning point or feeling of this moment
+- transitionFromPrevious: how this scene connects visually to the previous one ("cut", "fade", "dissolve", "match cut", "time lapse")`,
             },
           ],
           response_format: {
@@ -705,32 +784,7 @@ export const appRouter = router({
             json_schema: {
               name: "scene_breakdown",
               strict: true,
-              schema: {
-                type: "object",
-                properties: {
-                  scenes: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        title: { type: "string" },
-                        description: { type: "string" },
-                        timeOfDay: { type: "string" },
-                        weather: { type: "string" },
-                        lighting: { type: "string" },
-                        cameraAngle: { type: "string" },
-                        locationType: { type: "string" },
-                        mood: { type: "string" },
-                        estimatedDuration: { type: "number" },
-                      },
-                      required: ["title", "description", "timeOfDay", "weather", "lighting", "cameraAngle", "locationType", "mood", "estimatedDuration"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["scenes"],
-                additionalProperties: false,
-              },
+              schema: ENHANCED_SCENE_SCHEMA,
             },
           },
         });
@@ -739,14 +793,15 @@ export const appRouter = router({
         const parsed = JSON.parse(typeof content === "string" ? content : "");
         const scenesData = parsed.scenes || [];
 
-        // Create scenes in DB
+        // ── Step 3: Create scenes in DB with enhanced data ──
         for (let i = 0; i < scenesData.length; i++) {
           const s = scenesData[i];
           await db.createScene({
             projectId: project.id,
             orderIndex: i,
             title: s.title,
-            description: s.description,
+            // Store the rich visual description for image generation
+            description: s.visualDescription || s.description,
             timeOfDay: s.timeOfDay as any,
             weather: s.weather as any,
             lighting: s.lighting as any,
@@ -754,19 +809,55 @@ export const appRouter = router({
             locationType: s.locationType,
             mood: s.mood,
             duration: s.estimatedDuration || 30,
+            transitionType: s.transitionFromPrevious || "cut",
+            // Store additional cinematic data in production notes
+            productionNotes: [
+              `Narrative: ${s.description}`,
+              `Color palette: ${s.colorPalette}`,
+              `Lens: ${s.focalLength}, DOF: ${s.depthOfField}`,
+              `FG: ${s.foregroundElements}`,
+              `BG: ${s.backgroundElements}`,
+              `Action: ${s.characterAction}`,
+              `Emotional beat: ${s.emotionalBeat}`,
+            ].join("\n"),
           });
         }
 
-        // Generate preview images for ALL scenes in parallel (batches of 4)
+        // ── Step 4: Generate images with Visual DNA consistency ──
         const allScenes = await db.getProjectScenes(project.id);
         const BATCH_SIZE = 4;
         let generatedCount = 0;
+
+        // Collect character photo references for image generation
+        const characterPhotos: Array<{ url: string; mimeType: string }> = [];
+        for (const char of characters) {
+          if (char.photoUrl) {
+            characterPhotos.push({ url: char.photoUrl, mimeType: "image/jpeg" });
+          }
+        }
+
         for (let batch = 0; batch < allScenes.length; batch += BATCH_SIZE) {
           const batchScenes = allScenes.slice(batch, batch + BATCH_SIZE);
-          const imagePromises = batchScenes.map(async (scene) => {
+          const imagePromises = batchScenes.map(async (scene, batchIdx) => {
             try {
-              const prompt = `Cinematic film still, ${scene.description}, ${scene.lighting} lighting, ${scene.cameraAngle} shot, ${scene.mood} mood, ${scene.weather} weather, ${scene.timeOfDay}, photorealistic, shot on ARRI ALEXA 65, 8K resolution, film grain, professional color grading`;
-              const result = await generateImage({ prompt });
+              const sceneIdx = batch + batchIdx;
+              // Build a rich cinematic prompt using the Visual DNA system
+              const prompt = buildScenePrompt(
+                scene,
+                visualDNA,
+                {
+                  sceneIndex: sceneIdx,
+                  totalScenes: allScenes.length,
+                  previousSceneDescription: sceneIdx > 0 ? (allScenes[sceneIdx - 1]?.description || undefined) : undefined,
+                  characterNames: characters.map(c => c.name),
+                }
+              );
+
+              // Pass character photos as reference images for consistency
+              const result = await generateImage({
+                prompt,
+                originalImages: characterPhotos.length > 0 ? characterPhotos : undefined,
+              });
               await db.updateScene(scene.id, { thumbnailUrl: result.url });
               generatedCount++;
               return result.url;
@@ -881,7 +972,18 @@ export const appRouter = router({
         const trailerContent = llmResult.choices[0]?.message?.content;
         const trailerData = JSON.parse(typeof trailerContent === "string" ? trailerContent : "");
 
-        // Generate preview images for each trailer scene
+        // Build Visual DNA for consistent trailer style
+        const visualDNA = buildVisualDNA(project, characters);
+
+        // Collect character photos for reference
+        const characterPhotos: Array<{ url: string; mimeType: string }> = [];
+        for (const char of characters) {
+          if (char.photoUrl) {
+            characterPhotos.push({ url: char.photoUrl, mimeType: "image/jpeg" });
+          }
+        }
+
+        // Generate preview images for each trailer scene with Visual DNA
         const trailerScenes = trailerData.selectedScenes || [];
         const trailerImages: string[] = [];
 
@@ -890,8 +992,11 @@ export const appRouter = router({
           if (sceneIdx >= 0 && sceneIdx < allScenes.length) {
             const scene = allScenes[sceneIdx];
             try {
-              const prompt = `Cinematic Hollywood trailer shot, G-rated family-friendly imagery, ${ts.trailerDescription}, ${scene.lighting || "dramatic"} lighting, ${scene.mood || "epic"} mood, widescreen aspect ratio, photorealistic, 8k, cinematic color grading, no violence, no gore, no mature content, suitable for all audiences`;
-              const imgResult = await generateImage({ prompt });
+              const prompt = buildTrailerPrompt(scene, visualDNA, ts.trailerDescription);
+              const imgResult = await generateImage({
+                prompt,
+                originalImages: characterPhotos.length > 0 ? characterPhotos : undefined,
+              });
               if (imgResult.url) {
                 trailerImages.push(imgResult.url);
                 // Also update scene thumbnail if it doesn't have one
