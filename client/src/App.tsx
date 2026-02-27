@@ -26,6 +26,7 @@ import SoundEffects from "./pages/SoundEffects";
 import VisualEffects from "./pages/VisualEffects";
 import Collaboration from "./pages/Collaboration";
 import Movies from "./pages/Movies";
+import AdPosterMaker from "./pages/AdPosterMaker";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -64,6 +65,7 @@ function Router() {
             <Route path="/projects/:id" component={ProjectDetail} />
             <Route path="/projects/:id/scenes" component={SceneEditor} />
             <Route path="/movies" component={Movies} />
+            <Route path="/poster-maker" component={AdPosterMaker} />
             <Route path="/characters" component={Characters} />
             <Route path="/admin/users" component={AdminUsers} />
             <Route path="/404" component={NotFound} />

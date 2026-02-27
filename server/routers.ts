@@ -2773,5 +2773,83 @@ Rules:
         };
       }),
   }),
+
+  // ─── Poster / Ad Maker ─────────────────────────────────────────────────────
+  poster: router({
+    generateImage: protectedProcedure
+      .input(z.object({
+        prompt: z.string().min(1).max(2000),
+        templateType: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const result = await generateImage({
+          prompt: input.prompt,
+        });
+        return { url: result.url || null };
+      }),
+
+    generateCopy: protectedProcedure
+      .input(z.object({
+        title: z.string(),
+        genre: z.string(),
+        description: z.string(),
+        templateType: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const templateDescriptions: Record<string, string> = {
+          "poster": "classic movie poster",
+          "social-square": "social media square post",
+          "social-story": "social media story/reel",
+          "banner": "website banner or YouTube thumbnail",
+          "billboard": "billboard advertisement",
+          "dvd-cover": "DVD/Blu-ray cover",
+          "press-kit": "press kit media sheet",
+        };
+        const templateDesc = templateDescriptions[input.templateType] || "movie poster";
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `You are a professional film marketing copywriter. Generate compelling marketing copy for a ${templateDesc}. Return valid JSON only.`,
+            },
+            {
+              role: "user",
+              content: `Generate marketing copy for a ${input.genre} film:\n\nTitle: ${input.title}\nGenre: ${input.genre}\nDescription: ${input.description}\n\nReturn JSON with these fields:\n- title: the film title, possibly stylized (max 40 chars)\n- tagline: a compelling tagline (max 80 chars)\n- credits: a credits line like "Directed by X • Starring Y, Z" (max 120 chars)`,
+            },
+          ],
+          responseFormat: {
+            type: "json_schema",
+            json_schema: {
+              name: "poster_copy",
+              schema: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  tagline: { type: "string" },
+                  credits: { type: "string" },
+                },
+                required: ["title", "tagline", "credits"],
+                additionalProperties: false,
+              },
+              strict: true,
+            },
+          },
+        });
+
+        const rawContent = response.choices?.[0]?.message?.content;
+        const content = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p: any) => typeof p === "string" ? p : p.text || "").join("") : "";
+        try {
+          const parsed = JSON.parse(content);
+          return {
+            title: parsed.title || null,
+            tagline: parsed.tagline || null,
+            credits: parsed.credits || null,
+          };
+        } catch {
+          return { title: null, tagline: null, credits: null };
+        }
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
