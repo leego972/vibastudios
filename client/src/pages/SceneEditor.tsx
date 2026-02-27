@@ -452,7 +452,7 @@ export default function SceneEditor() {
                 <Sun className="h-3.5 w-3.5" />
                 Time & Atmosphere
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Time of Day</Label>
                   <Select value={form.timeOfDay} onValueChange={v => setField("timeOfDay", v)}>

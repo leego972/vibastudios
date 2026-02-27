@@ -936,11 +936,12 @@ export async function processDirectorMessage(
 
     // If there are tool calls, execute them
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      // Add assistant message with tool calls to conversation
+      // Add assistant message WITH tool_calls to conversation (required by API)
       messages.push({
         role: "assistant",
         content: assistantMessage.content || "",
-      });
+        tool_calls: assistantMessage.tool_calls,
+      } as any);
 
       for (const toolCall of assistantMessage.tool_calls) {
         const args = JSON.parse(toolCall.function.arguments);
@@ -952,9 +953,10 @@ export async function processDirectorMessage(
           message: actionResult.message,
         });
 
-        // Add tool result to messages for the next iteration
+        // Add tool result to messages with tool_call_id for the next iteration
         messages.push({
           role: "tool" as any,
+          tool_call_id: toolCall.id,
           content: JSON.stringify({ success: actionResult.success, result: actionResult.message }),
         });
       }

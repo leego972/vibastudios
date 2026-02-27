@@ -164,7 +164,7 @@ export default function NewProject() {
 
         {/* Tabbed sections */}
         <Tabs defaultValue="basics" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsList className="flex flex-wrap w-full h-auto gap-1">
             <TabsTrigger value="basics" className="gap-1.5">
               <Film className="h-3.5 w-3.5" />
               Basics

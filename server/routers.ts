@@ -412,7 +412,8 @@ export const appRouter = router({
 
         let analysis: any = {};
         try {
-          const content = analysisResult.choices?.[0]?.message?.content || "{}";
+          const rawContent = analysisResult.choices?.[0]?.message?.content;
+          const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent) || "{}";
           analysis = JSON.parse(content);
         } catch {
           analysis = { detailedDescription: "Character from reference photo" };

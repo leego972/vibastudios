@@ -489,7 +489,7 @@ export default function VisualEffects() {
               <Label className="text-xs text-muted-foreground">Intensity: {Math.round(form.intensity * 100)}%</Label>
               <Slider value={[form.intensity]} onValueChange={([v]) => setForm(p => ({ ...p, intensity: v }))} min={0} max={1} step={0.05} className="py-2" />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Duration (sec)</Label>
                 <Input placeholder="e.g. 3.5" value={form.duration} onChange={(e) => setForm(p => ({ ...p, duration: e.target.value }))} className="h-9 text-sm bg-background/50" />

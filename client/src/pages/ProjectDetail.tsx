@@ -1474,7 +1474,7 @@ export default function ProjectDetail() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Fade In (sec)</Label>
                 <Input type="number" min={0} max={30} value={soundtrackForm.fadeIn} onChange={e => setSoundtrackForm(p => ({ ...p, fadeIn: Number(e.target.value) }))} className="h-9 text-sm bg-background/50" />

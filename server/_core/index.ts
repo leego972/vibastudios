@@ -33,9 +33,9 @@ function rateLimit(windowMs: number, maxRequests: number) {
 // Periodically clean up expired rate limit entries
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of rateLimitMap) {
+  Array.from(rateLimitMap.entries()).forEach(([key, entry]) => {
     if (now > entry.resetAt) rateLimitMap.delete(key);
-  }
+  });
 }, 60_000);
 
 function isPortAvailable(port: number): Promise<boolean> {

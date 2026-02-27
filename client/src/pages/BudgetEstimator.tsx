@@ -94,8 +94,8 @@ export default function BudgetEstimator() {
       `PRODUCTION BUDGET ESTIMATE`,
       `Project: ${project.data?.title || "Untitled"}`,
       `Generated: ${new Date(activeBudget.createdAt).toLocaleDateString()}`,
-      `Total Estimate: ${formatCurrency(activeBudget.totalEstimate)}`,
-      `Confidence: ${activeBudget.confidence}%`,
+      `Total Estimate: ${formatCurrency(activeBudget.totalEstimate ?? 0)}`,
+      `Confidence: ${(activeBudget as any).confidence ?? "N/A"}%`,
       ``,
       `${"-".repeat(60)}`,
     ];
@@ -108,7 +108,7 @@ export default function BudgetEstimator() {
       });
     });
     lines.push(`\n${"-".repeat(60)}`);
-    lines.push(`GRAND TOTAL: ${formatCurrency(activeBudget.totalEstimate)}`);
+    lines.push(`GRAND TOTAL: ${formatCurrency(activeBudget.totalEstimate ?? 0)}`);
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
