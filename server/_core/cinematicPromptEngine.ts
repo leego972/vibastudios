@@ -271,9 +271,10 @@ const FILM_STOCK_PROFILES: Record<string, string> = {
 // ─── Negative Prompt Library ───
 
 const NEGATIVE_PROMPTS: Record<string, string> = {
-  "universal": "blurry, out of focus, low resolution, pixelated, jpeg artifacts, watermark, text overlay, logo, signature, frame border, collage, split image, multiple panels, cartoon, anime, illustration, painting, sketch, drawing, 3D render, CGI obvious, plastic skin, waxy skin, mannequin, doll-like, uncanny valley, extra fingers, extra limbs, deformed hands, deformed face, cross-eyed, asymmetric eyes, bad anatomy, bad proportions, mutation, disfigured",
-  "photorealistic": "oversaturated, HDR look, overprocessed, Instagram filter, heavy vignette, lens distortion, fish-eye, overexposed, underexposed, flat lighting, flash photography, red eye, motion blur on face, noisy, grainy low quality",
-  "cinematic": "amateur photography, snapshot, selfie, phone camera, webcam, security camera, low budget, cheap production, TV show quality, soap opera lighting, flat video look, vertical video",
+  "universal": "blurry, out of focus, low resolution, pixelated, jpeg artifacts, watermark, text overlay, logo, signature, frame border, collage, split image, multiple panels, extra fingers, extra limbs, deformed hands, deformed face, cross-eyed, asymmetric eyes, bad anatomy, bad proportions, mutation, disfigured",
+  "anti_ai": "cartoon, anime, illustration, painting, sketch, drawing, 3D render, CGI, digital art, concept art, fan art, deviantart, artstation, unreal engine render, video game screenshot, plastic skin, waxy skin, porcelain skin, mannequin, doll-like, uncanny valley, airbrushed, overly smooth skin, perfect symmetry, too clean, too perfect, artificial looking, AI generated look, midjourney style, stable diffusion artifacts, neural network artifacts",
+  "photorealistic": "oversaturated, HDR look, overprocessed, Instagram filter, heavy vignette, fish-eye, overexposed, underexposed, flat lighting, flash photography, red eye, motion blur on face, noisy low quality, stock photo look, corporate photography, generic, bland, lifeless",
+  "cinematic": "amateur photography, snapshot, selfie, phone camera, webcam, security camera, low budget, cheap production, TV show quality, soap opera lighting, flat video look, vertical video, made for TV, direct to video quality",
 };
 
 // ─── Quality Tier Definitions ───
@@ -281,15 +282,15 @@ const NEGATIVE_PROMPTS: Record<string, string> = {
 export type QualityTier = "free" | "pro" | "industry";
 
 const QUALITY_ANCHORS: Record<QualityTier, string> = {
-  "free": "photorealistic film still, professional cinematography, shot on digital cinema camera, 1080p HD resolution, good production value, natural lighting, proper exposure and white balance",
-  "pro": "ultra-photorealistic cinematic film still, indistinguishable from a real Hollywood film frame, shot on ARRI ALEXA Mini with Cooke S7/i Full Frame Plus lenses, 4K resolution, professional Hollywood production value, natural skin subsurface scattering, volumetric atmospheric lighting, film-accurate color science, Kodak Vision3 film emulation",
-  "industry": "masterclass photorealistic cinematic film still, absolutely indistinguishable from a real $200M Hollywood production frame, shot on ARRI ALEXA 65 with Zeiss Supreme Prime Radiance lenses, 8K resolution, A-list Hollywood production value, perfect natural skin subsurface scattering with visible pores and micro-texture, volumetric atmospheric lighting with physically accurate light transport, film-accurate Kodak Vision3 500T color science, Academy Award-winning cinematography level, reference-quality depth of field with optical perfection, every surface material rendered with physically-based accuracy",
+  "free": "RAW photograph, photorealistic, shot on Canon EOS R5 with 50mm f/1.4 lens, natural available light, real human skin with visible pores and natural imperfections, authentic facial features, genuine emotion, real-world location, 1080p resolution, slight natural film grain, sensor noise at ISO 800, chromatic aberration at frame edges, natural lens vignetting, real photograph indistinguishable from a DSLR capture",
+  "pro": "RAW photograph captured on ARRI ALEXA Mini with Cooke S7/i Full Frame Plus anamorphic lenses, utterly indistinguishable from a real Hollywood film frame, real human skin with visible pores and subsurface scattering showing blood beneath skin, natural skin blemishes and micro-texture, authentic facial asymmetry, real sweat and moisture on skin, 4K resolution, Kodak Vision3 500T film stock emulation with organic grain structure, volumetric atmospheric lighting with physically accurate light falloff, real optical lens characteristics including subtle barrel distortion and natural bokeh with cat-eye shapes at frame edges, authentic set design with lived-in production detail",
+  "industry": "RAW photograph captured on ARRI ALEXA 65 large-format sensor with Zeiss Supreme Prime Radiance lenses, absolutely indistinguishable from a real $200M Hollywood production frame by Roger Deakins or Emmanuel Lubezki, real human skin rendered with perfect subsurface scattering showing veins and blood flow beneath translucent skin layers, visible pores and micro-wrinkles and peach fuzz hair, natural skin blemishes and freckles and age spots, authentic facial asymmetry with real bone structure, 8K resolution, Kodak Vision3 500T color science with organic halation on highlights, volumetric atmospheric lighting with physically accurate inverse-square light falloff and color temperature mixing, real optical characteristics including anamorphic lens breathing and oval bokeh and subtle chromatic fringing, Academy Award-winning cinematography, every surface material rendered with physically-based accuracy including specular microstructure on metals and translucency in fabrics and caustics in glass",
 };
 
 const QUALITY_NEGATIVE: Record<QualityTier, string> = {
-  "free": NEGATIVE_PROMPTS.universal,
-  "pro": `${NEGATIVE_PROMPTS.universal}, ${NEGATIVE_PROMPTS.photorealistic}`,
-  "industry": `${NEGATIVE_PROMPTS.universal}, ${NEGATIVE_PROMPTS.photorealistic}, ${NEGATIVE_PROMPTS.cinematic}`,
+  "free": `${NEGATIVE_PROMPTS.universal}, ${NEGATIVE_PROMPTS.anti_ai}`,
+  "pro": `${NEGATIVE_PROMPTS.universal}, ${NEGATIVE_PROMPTS.anti_ai}, ${NEGATIVE_PROMPTS.photorealistic}`,
+  "industry": `${NEGATIVE_PROMPTS.universal}, ${NEGATIVE_PROMPTS.anti_ai}, ${NEGATIVE_PROMPTS.photorealistic}, ${NEGATIVE_PROMPTS.cinematic}`,
 };
 
 // ─── Visual DNA Builder ───
@@ -407,7 +408,7 @@ export function buildScenePrompt(
   // 2. Shot type and camera with technical precision
   const cameraAngle = scene.cameraAngle || "medium";
   const cameraDetail = CAMERA_ANGLE_DETAILS[cameraAngle] || CAMERA_ANGLE_DETAILS["medium"];
-  parts.push(`Cinematic film still — ${cameraDetail}`);
+  parts.push(`RAW photograph, photorealistic cinematic film frame — ${cameraDetail}`);
 
   // 3. Camera movement context
   if (options?.cameraMovement) {

@@ -7,6 +7,7 @@ import * as db from "./db";
 import { storagePut } from "./storage";
 import { invokeLLM } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
+import { generateVideo, generateVideoWithFallback, buildVideoPrompt } from "./_core/videoGeneration";
 import { nanoid } from "nanoid";
 import { processDirectorMessage } from "./directorAssistant";
 import { transcribeAudio } from "./_core/voiceTranscription";
@@ -924,12 +925,11 @@ Break this into 8-15 scenes. For each scene, provide:
           });
         }
 
-        // ── Step 4: Generate images with Visual DNA consistency ──
+        // ── Step 4: Generate VIDEO CLIPS for each scene using Sora API ──
         const allScenes = await db.getProjectScenes(project.id);
-        const BATCH_SIZE = 4;
         let generatedCount = 0;
 
-        // Collect character photo references for image generation
+        // Collect character photo references for image generation fallback
         const characterPhotos: Array<{ url: string; mimeType: string }> = [];
         for (const char of characters) {
           if (char.photoUrl) {
@@ -937,46 +937,92 @@ Break this into 8-15 scenes. For each scene, provide:
           }
         }
 
-        for (let batch = 0; batch < allScenes.length; batch += BATCH_SIZE) {
-          const batchScenes = allScenes.slice(batch, batch + BATCH_SIZE);
-          const imagePromises = batchScenes.map(async (scene, batchIdx) => {
-            try {
-              const sceneIdx = batch + batchIdx;
-              // Build a rich cinematic prompt using the Visual DNA system
-              const prompt = buildScenePrompt(
-                scene,
-                visualDNA,
-                {
-                  sceneIndex: sceneIdx,
-                  totalScenes: allScenes.length,
-                  previousSceneDescription: sceneIdx > 0 ? (allScenes[sceneIdx - 1]?.description || undefined) : undefined,
-                  characterNames: characters.map(c => c.name),
-                }
-              );
+        // Determine video settings based on subscription tier
+        const videoModel = userTier === "industry" ? "sora-2-pro" : "sora-2";
+        const videoResolution = userTier === "industry" ? "1080p" : userTier === "pro" ? "720p" : "480p";
 
-              // Pass character photos as reference images for consistency
-              const result = await generateImage({
-                prompt,
+        // Generate videos sequentially (Sora is async and rate-limited)
+        for (let sceneIdx = 0; sceneIdx < allScenes.length; sceneIdx++) {
+          const scene = allScenes[sceneIdx];
+          try {
+            // Build cinematic image prompt for thumbnail
+            const imagePrompt = buildScenePrompt(
+              scene,
+              visualDNA,
+              {
+                sceneIndex: sceneIdx,
+                totalScenes: allScenes.length,
+                previousSceneDescription: sceneIdx > 0 ? (allScenes[sceneIdx - 1]?.description || undefined) : undefined,
+                characterNames: characters.map(c => c.name),
+              }
+            );
+
+            // Step 4a: Generate thumbnail image first (fast)
+            try {
+              const imgResult = await generateImage({
+                prompt: imagePrompt,
                 originalImages: characterPhotos.length > 0 ? characterPhotos : undefined,
               });
-              await db.updateScene(scene.id, { thumbnailUrl: result.url });
+              if (imgResult.url) {
+                await db.updateScene(scene.id, { thumbnailUrl: imgResult.url });
+                // Use first scene image as project thumbnail
+                if (sceneIdx === 0) {
+                  await db.updateProject(project.id, ctx.user.id, { thumbnailUrl: imgResult.url });
+                }
+              }
+            } catch (imgErr) {
+              console.error(`Failed to generate thumbnail for scene "${scene.title}":`, imgErr);
+            }
+
+            // Step 4b: Generate video clip using Sora API
+            const videoPrompt = buildVideoPrompt(
+              scene.description || scene.title || "A cinematic scene",
+              {
+                cameraMovement: (scene.cameraAngle as string) === "tracking" ? "smooth tracking shot" : "slow cinematic dolly",
+                mood: scene.mood || undefined,
+                lighting: scene.lighting || undefined,
+                timeOfDay: scene.timeOfDay || undefined,
+                weather: scene.weather || undefined,
+                genre: project.genre || undefined,
+                characterAction: scene.productionNotes?.split("\n").find(l => l.startsWith("Action:"))?.replace("Action: ", "") || undefined,
+              }
+            );
+
+            // Calculate scene video duration (5-20 seconds, capped by Sora limits)
+            const sceneDuration = Math.min(20, Math.max(5, Math.round((scene.duration || 10) / 3)));
+
+            try {
+              const videoResult = await generateVideo({
+                prompt: videoPrompt,
+                seconds: sceneDuration,
+                resolution: videoResolution as any,
+                model: videoModel as any,
+              });
+
+              await db.updateScene(scene.id, {
+                videoUrl: videoResult.videoUrl,
+                videoJobId: videoResult.soraJobId,
+                status: "completed",
+              });
+
+              // If video generated a thumbnail and we don't have one, use it
+              if (videoResult.thumbnailUrl && !scene.thumbnailUrl) {
+                await db.updateScene(scene.id, { thumbnailUrl: videoResult.thumbnailUrl });
+              }
+
               generatedCount++;
-              return result.url;
-            } catch (e) {
-              console.error(`Failed to generate image for scene "${scene.title}":`, e);
-              return null;
+              console.log(`[QuickGen] Scene ${sceneIdx + 1}/${allScenes.length} video generated: ${videoResult.videoUrl}`);
+            } catch (videoErr: any) {
+              console.error(`[QuickGen] Video generation failed for scene "${scene.title}", scene will have thumbnail only:`, videoErr.message);
+              // Scene still has its thumbnail image — video generation is best-effort
+              await db.updateScene(scene.id, { status: "completed" });
             }
-          });
-          const results = await Promise.allSettled(imagePromises);
-          // Use first successful image as project thumbnail
-          if (batch === 0) {
-            const firstUrl = results.find(r => r.status === "fulfilled" && r.value);
-            if (firstUrl && firstUrl.status === "fulfilled" && firstUrl.value) {
-              await db.updateProject(project.id, ctx.user.id, { thumbnailUrl: firstUrl.value });
-            }
+          } catch (e) {
+            console.error(`Failed to process scene "${scene.title}":`, e);
           }
+
           // Update progress
-          const progress = Math.min(95, Math.round(((batch + batchScenes.length) / allScenes.length) * 90) + 10);
+          const progress = Math.min(95, Math.round(((sceneIdx + 1) / allScenes.length) * 90) + 10);
           await db.updateJob(job.id, { progress });
           await db.updateProject(project.id, ctx.user.id, { progress });
         }
@@ -1242,11 +1288,116 @@ Break this into 8-15 scenes. For each scene, provide:
           messages: [
             {
               role: "system",
-              content: `You are a professional Hollywood screenwriter. Write a properly formatted movie screenplay following industry-standard format:\n\n- Scene headings: INT./EXT. LOCATION - TIME OF DAY (all caps)\n- Action lines: Present tense, vivid, concise descriptions\n- Character names: ALL CAPS when first introduced, then CAPS above dialogue\n- Dialogue: Centered under character name\n- Parentheticals: (in parentheses) for delivery direction\n- Transitions: CUT TO:, FADE IN:, FADE OUT., DISSOLVE TO: (right-aligned)\n\nWrite compelling, cinematic dialogue and vivid action descriptions. The script should feel like a real Hollywood production.`,
+              content: `You are an Academy Award-winning screenwriter with 30 years of experience writing for major Hollywood studios (Warner Bros, Universal, A24, Paramount). You have written screenplays that have grossed over $2 billion worldwide. You write in the exact format used by professional Hollywood screenwriters.
+
+You MUST follow industry-standard screenplay format EXACTLY:
+
+=== FORMATTING RULES ===
+
+1. FADE IN: — Always the first line of the screenplay.
+
+2. SCENE HEADINGS (Sluglines) — ALL CAPS. Format: INT./EXT. LOCATION - TIME OF DAY
+   Examples:
+   INT. DETECTIVE'S OFFICE - NIGHT
+   EXT. MANHATTAN SKYLINE - DAWN
+   INT./EXT. MOVING CAR - CONTINUOUS
+   Always specify: Interior/Exterior, specific location name, time of day.
+
+3. ACTION LINES — Present tense. Vivid, cinematic, economical prose. Paint what the camera SEES and HEARS.
+   - Introduce characters in ALL CAPS on first appearance with a brief vivid description (age, defining physical trait, energy).
+   - Use short paragraphs (3-4 lines max). White space is your friend.
+   - Describe sounds in CAPS: A GUNSHOT echoes. The CLOCK TICKS.
+   - Be specific: "She grips the steering wheel until her knuckles turn white" not "She looks nervous."
+
+4. CHARACTER NAME — ALL CAPS, centered above dialogue. Add (V.O.) for voice-over, (O.S.) for off-screen, (CONT'D) for continued.
+
+5. DIALOGUE — Below character name, indented. Natural, subtext-rich. People rarely say what they mean.
+   - Each character must have a DISTINCT VOICE — vocabulary, rhythm, verbal tics.
+   - Use subtext: what's unsaid matters more than what's said.
+   - Avoid on-the-nose dialogue. Characters should talk around the point.
+
+6. PARENTHETICALS — (in parentheses) between character name and dialogue. Use SPARINGLY.
+   Examples: (whispering), (to Sarah), (beat), (sotto voce), (re: the photo)
+
+7. TRANSITIONS — Right-aligned. Use sparingly for emphasis:
+   CUT TO:
+   SMASH CUT TO:
+   MATCH CUT TO:
+   DISSOLVE TO:
+   FADE TO BLACK.
+   FADE OUT.
+
+8. STRUCTURE — Follow three-act structure with clear:
+   - ACT ONE (Setup, ~25%): Establish world, characters, inciting incident
+   - ACT TWO (Confrontation, ~50%): Rising stakes, complications, midpoint reversal, dark night of the soul
+   - ACT THREE (Resolution, ~25%): Climax, resolution, denouement
+
+9. ADVANCED ELEMENTS:
+   - INTERCUT — INTERCUT BETWEEN: for parallel action
+   - MONTAGE — clearly labeled with individual shots
+   - FLASHBACK — FLASHBACK: and END FLASHBACK.
+   - SUPER: "Title cards or on-screen text"
+   - SERIES OF SHOTS — for rapid sequences
+   - BEGIN/END for dream sequences, fantasies
+
+10. PACING:
+    - 1 page ≈ 1 minute of screen time
+    - Vary scene length: short punchy scenes build tension, longer scenes allow character depth
+    - End scenes on a hook — cut out before the scene feels "done"
+    - Use "beat" in action lines for dramatic pauses
+
+=== WRITING QUALITY ===
+
+- Every scene must ADVANCE PLOT or REVEAL CHARACTER (ideally both)
+- Show, don't tell — use visual storytelling
+- Create memorable, quotable dialogue
+- Build tension through escalating stakes and ticking clocks
+- Plant setups early that pay off later (Chekhov's gun)
+- Give antagonists compelling motivations — no one is evil for evil's sake
+- Use dramatic irony — let the audience know things characters don't
+- Create emotional contrast — humor before tragedy, calm before storm
+- End the screenplay with an image that resonates and lingers
+
+FADE OUT. — Always the last line of the screenplay.`,
             },
             {
               role: "user",
-              content: `Write a screenplay for:\n\nTitle: ${project.title}\nGenre: ${project.genre || "Drama"}\nRating: ${project.rating || "PG-13"}\nDuration: ${project.duration || 90} minutes\nPlot: ${project.plotSummary || project.description || "An untold story"}\n\nCharacters:\n${charBlock || "(No characters defined yet — create compelling original characters)"}\n\n${sceneBlock ? `Scene Outline:\n${sceneBlock}` : ""}\n\n${input.instructions ? `Additional directions: ${input.instructions}` : ""}\n\nWrite the complete screenplay with proper formatting. Include FADE IN: at the start and FADE OUT. at the end.`,
+              content: `Write a complete, professional Hollywood screenplay for:
+
+TITLE: ${project.title}
+GENRE: ${project.genre || "Drama"}
+RATING: ${project.rating || "PG-13"}
+TARGET DURATION: ${project.duration || 90} minutes (approximately ${project.duration || 90} pages)
+TONE: ${project.tone || "compelling and cinematic"}
+SETTING: ${project.setting || "contemporary"}
+THEMES: ${project.themes || "human connection, transformation"}
+
+LOGLINE/PLOT:
+${project.plotSummary || project.description || "A compelling story that explores the human condition."}
+
+${project.mainPlot ? `MAIN PLOT:\n${project.mainPlot}` : ""}
+${project.sidePlots ? `SUBPLOTS:\n${project.sidePlots}` : ""}
+${project.plotTwists ? `KEY TWISTS:\n${project.plotTwists}` : ""}
+${project.openingScene ? `OPENING:\n${project.openingScene}` : ""}
+${project.climax ? `CLIMAX:\n${project.climax}` : ""}
+${project.storyResolution ? `RESOLUTION:\n${project.storyResolution}` : ""}
+${project.characterArcs ? `CHARACTER ARCS:\n${project.characterArcs}` : ""}
+
+CHARACTERS:
+${charBlock || "(Create compelling, three-dimensional original characters with distinct voices, clear motivations, and meaningful arcs.)"}
+
+${sceneBlock ? `SCENE OUTLINE:\n${sceneBlock}\n\nUse this outline as a guide but expand each scene with full dialogue, action lines, and cinematic detail.` : ""}
+
+${input.instructions ? `DIRECTOR'S NOTES: ${input.instructions}` : ""}
+
+Write the COMPLETE screenplay from FADE IN: to FADE OUT. Include:
+- A compelling cold open or opening image
+- Full dialogue for every scene with distinct character voices
+- Detailed action lines describing what the camera sees
+- Proper scene headings for every location change
+- Transitions between major sequences
+- A powerful, resonant ending
+- Approximately ${Math.max(8, Math.round((project.duration || 90) / 8))} to ${Math.max(15, Math.round((project.duration || 90) / 5))} scenes`,
             },
           ],
         });
@@ -2759,6 +2910,10 @@ Generate a detailed production budget estimate.`,
               movieTitle: project.title,
               sceneNumber: scene.orderIndex || i + 1,
               thumbnailUrl: scene.thumbnailUrl,
+              // Include the video URL if the scene has a generated video
+              fileUrl: (scene as any).videoUrl || undefined,
+              duration: scene.duration || undefined,
+              mimeType: (scene as any).videoUrl ? "video/mp4" : undefined,
               tags: [scene.locationType, scene.mood, scene.timeOfDay].filter(Boolean) as string[],
             });
             created.push(movie.id);

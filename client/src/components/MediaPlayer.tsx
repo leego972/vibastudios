@@ -346,7 +346,7 @@ export default function MediaPlayer({ movie, playlist, onClose, onNavigate }: Me
 
   const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
-  const playableMovies = playlist?.filter((m) => m.fileUrl) ?? [];
+  const playableMovies = playlist?.filter((m) => m.fileUrl || m.thumbnailUrl) ?? [];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -473,10 +473,35 @@ export default function MediaPlayer({ movie, playlist, onClose, onNavigate }: Me
             x-webkit-airplay="allow"
             controlsList="nodownload"
           />
+        ) : movie.thumbnailUrl ? (
+          /* Cinematic image viewer with Ken Burns effect when no video is available */
+          <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+            <img
+              src={movie.thumbnailUrl}
+              alt={movie.title}
+              className="max-w-full max-h-full object-contain animate-slow-zoom"
+              style={{
+                animation: 'kenBurns 20s ease-in-out infinite alternate',
+              }}
+            />
+            <div className="absolute bottom-20 left-0 right-0 text-center">
+              <div className="inline-flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-full px-4 py-2">
+                <Film className="h-4 w-4 text-amber-400" />
+                <span className="text-white/80 text-sm">Scene Preview — Video generating or awaiting generation</span>
+              </div>
+            </div>
+            <style>{`
+              @keyframes kenBurns {
+                0% { transform: scale(1) translate(0, 0); }
+                100% { transform: scale(1.08) translate(-1%, -1%); }
+              }
+            `}</style>
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-4 text-white/50">
             <Film className="h-20 w-20" />
             <p className="text-lg">No video file uploaded</p>
+            <p className="text-sm text-white/30">Generate scenes in your project to create video content</p>
           </div>
         )}
 

@@ -108,6 +108,8 @@ export const scenes = mysqlTable("scenes", {
   soundtrackVolume: int("soundtrackVolume").default(80), // 0-100
   thumbnailUrl: text("thumbnailUrl"),
   generatedUrl: text("generatedUrl"),
+  videoUrl: text("videoUrl"), // S3 URL for the generated video clip (MP4)
+  videoJobId: varchar("videoJobId", { length: 255 }), // Sora job ID for tracking
   status: mysqlEnum("status", ["draft", "generating", "completed", "failed"]).default("draft").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

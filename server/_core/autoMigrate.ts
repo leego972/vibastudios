@@ -112,6 +112,13 @@ export async function runAutoMigration(): Promise<void> {
     { table: "users", column: "email", definition: "VARCHAR(320) NULL" },
     { table: "users", column: "passwordHash", definition: "VARCHAR(255) NULL" },
     { table: "users", column: "loginMethod", definition: "VARCHAR(64) NULL" },
+    // Scenes table - video generation fields
+    { table: "scenes", column: "videoUrl", definition: "TEXT NULL" },
+    { table: "scenes", column: "videoJobId", definition: "VARCHAR(255) NULL" },
+    // Users table - bonus generations from referrals
+    { table: "users", column: "bonusGenerations", definition: "INT NOT NULL DEFAULT 0" },
+    { table: "users", column: "referralCode", definition: "VARCHAR(32) NULL" },
+    { table: "users", column: "referralStats", definition: "JSON NULL" },
   ];
 
   let tablesCreated = 0;

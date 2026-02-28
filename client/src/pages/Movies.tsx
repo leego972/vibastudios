@@ -293,7 +293,7 @@ export default function Movies() {
     <Card
       key={movie.id}
       className="overflow-hidden group hover:ring-1 hover:ring-primary/30 transition-all cursor-pointer"
-      onClick={() => movie.fileUrl ? setShowPlayer(movie.id) : undefined}
+      onClick={() => (movie.fileUrl || movie.thumbnailUrl) ? setShowPlayer(movie.id) : undefined}
     >
       <div className="relative aspect-video bg-muted">
         {movie.thumbnailUrl ? (
@@ -461,7 +461,7 @@ export default function Movies() {
     <Card
       key={movie.id}
       className="hover:ring-1 hover:ring-primary/30 transition-all cursor-pointer"
-      onClick={() => movie.fileUrl ? setShowPlayer(movie.id) : undefined}
+      onClick={() => (movie.fileUrl || movie.thumbnailUrl) ? setShowPlayer(movie.id) : undefined}
     >
       <CardContent className="p-3 flex items-center gap-4">
         <div className="w-24 h-16 rounded-md overflow-hidden bg-muted shrink-0 relative group">
