@@ -8,6 +8,7 @@ import { storagePut } from "./storage";
 import { invokeLLM } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
 import { generateVideo, generateVideoWithFallback, buildVideoPrompt } from "./_core/videoGeneration";
+import { generateUnifiedVideo, generateScenesParallel, buildUnifiedVideoPrompt, getAvailableProviders } from "./_core/unifiedVideoEngine";
 import { nanoid } from "nanoid";
 import { processDirectorMessage } from "./directorAssistant";
 import { transcribeAudio } from "./_core/voiceTranscription";
@@ -974,8 +975,8 @@ Break this into 8-15 scenes. For each scene, provide:
               console.error(`Failed to generate thumbnail for scene "${scene.title}":`, imgErr);
             }
 
-            // Step 4b: Generate video clip using Sora API
-            const videoPrompt = buildVideoPrompt(
+            // Step 4b: Generate video clip using Unified Video Engine (Runway + Sora)
+            const videoPrompt = buildUnifiedVideoPrompt(
               scene.description || scene.title || "A cinematic scene",
               {
                 cameraMovement: (scene.cameraAngle as string) === "tracking" ? "smooth tracking shot" : "slow cinematic dolly",
@@ -988,20 +989,21 @@ Break this into 8-15 scenes. For each scene, provide:
               }
             );
 
-            // Calculate scene video duration (5-20 seconds, capped by Sora limits)
-            const sceneDuration = Math.min(20, Math.max(5, Math.round((scene.duration || 10) / 3)));
+            // Calculate scene video duration (2-10 seconds for Runway, 4-12 for Sora)
+            const sceneDuration = Math.min(10, Math.max(2, Math.round((scene.duration || 10) / 3)));
 
             try {
-              const videoResult = await generateVideo({
+              const videoResult = await generateUnifiedVideo({
                 prompt: videoPrompt,
                 seconds: sceneDuration,
                 resolution: videoResolution as any,
-                model: videoModel as any,
+                inputImageUrl: scene.thumbnailUrl || undefined,
+                aspectRatio: "landscape",
               });
 
               await db.updateScene(scene.id, {
                 videoUrl: videoResult.videoUrl,
-                videoJobId: videoResult.soraJobId,
+                videoJobId: videoResult.jobId,
                 status: "completed",
               });
 
@@ -1011,7 +1013,7 @@ Break this into 8-15 scenes. For each scene, provide:
               }
 
               generatedCount++;
-              console.log(`[QuickGen] Scene ${sceneIdx + 1}/${allScenes.length} video generated: ${videoResult.videoUrl}`);
+              console.log(`[QuickGen] Scene ${sceneIdx + 1}/${allScenes.length} video generated via ${videoResult.provider}: ${videoResult.videoUrl}`);
             } catch (videoErr: any) {
               console.error(`[QuickGen] Video generation failed for scene "${scene.title}", scene will have thumbnail only:`, videoErr.message);
               // Scene still has its thumbnail image — video generation is best-effort
