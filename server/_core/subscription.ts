@@ -52,6 +52,7 @@ export interface TierLimits {
   canUseAILocationSuggest: boolean;
   resolution: "720p" | "1080p" | "4k";
   quality: ("standard" | "high" | "ultra")[];
+  maxDurationMinutes: number;
 }
 
 export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
@@ -93,6 +94,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     canUseAILocationSuggest: false,
     resolution: "720p",
     quality: ["standard"],
+    maxDurationMinutes: 10,
   },
   pro: {
     maxProjects: 25,
@@ -132,6 +134,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     canUseAILocationSuggest: true,
     resolution: "1080p",
     quality: ["standard", "high"],
+    maxDurationMinutes: 60,
   },
   industry: {
     maxProjects: -1, // unlimited
@@ -171,6 +174,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     canUseAILocationSuggest: true,
     resolution: "4k",
     quality: ["standard", "high", "ultra"],
+    maxDurationMinutes: 180,
   },
 };
 

@@ -110,3 +110,5 @@ temp/
 .webdev/
 audit_findings.txt
 stripe_audit.txt
+audit_notes.txt
+gen_audit.txt

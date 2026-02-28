@@ -1,66 +1,94 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
 import { SubscriptionGate } from "./components/SubscriptionGate";
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
+
+// ─── Lazy-loaded pages (code splitting) ───
+// Core pages loaded eagerly for instant navigation
 import Home from "./pages/Home";
-import Projects from "./pages/Projects";
-import ProjectDetail from "./pages/ProjectDetail";
-import NewProject from "./pages/NewProject";
-import Characters from "./pages/Characters";
-import SceneEditor from "./pages/SceneEditor";
-import ScriptWriter from "./pages/ScriptWriter";
-import Storyboard from "./pages/Storyboard";
-import CreditsEditor from "./pages/CreditsEditor";
-import ShotList from "./pages/ShotList";
-import ContinuityCheck from "./pages/ContinuityCheck";
-import ColorGrading from "./pages/ColorGrading";
-import LocationScout from "./pages/LocationScout";
-import MoodBoard from "./pages/MoodBoard";
-import Subtitles from "./pages/Subtitles";
-import DialogueEditor from "./pages/DialogueEditor";
-import BudgetEstimator from "./pages/BudgetEstimator";
-import SoundEffects from "./pages/SoundEffects";
-import VisualEffects from "./pages/VisualEffects";
-import Collaboration from "./pages/Collaboration";
-import Movies from "./pages/Movies";
-import AdPosterMaker from "./pages/AdPosterMaker";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import AdminUsers from "./pages/AdminUsers";
-import Pricing from "./pages/Pricing";
-import CampaignManager from "./pages/CampaignManager";
+import NotFound from "@/pages/NotFound";
+
+// Dashboard pages — lazy loaded
+const Projects = lazy(() => import("./pages/Projects"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const NewProject = lazy(() => import("./pages/NewProject"));
+const Characters = lazy(() => import("./pages/Characters"));
+const SceneEditor = lazy(() => import("./pages/SceneEditor"));
+const Movies = lazy(() => import("./pages/Movies"));
+const AdPosterMaker = lazy(() => import("./pages/AdPosterMaker"));
+const CampaignManager = lazy(() => import("./pages/CampaignManager"));
+const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+
+// Auth pages — lazy loaded (less frequently visited)
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+
+// Full-screen tool pages — lazy loaded (Pro features, heavy components)
+const ScriptWriter = lazy(() => import("./pages/ScriptWriter"));
+const Storyboard = lazy(() => import("./pages/Storyboard"));
+const CreditsEditor = lazy(() => import("./pages/CreditsEditor"));
+const ShotList = lazy(() => import("./pages/ShotList"));
+const ContinuityCheck = lazy(() => import("./pages/ContinuityCheck"));
+const ColorGrading = lazy(() => import("./pages/ColorGrading"));
+const LocationScout = lazy(() => import("./pages/LocationScout"));
+const MoodBoard = lazy(() => import("./pages/MoodBoard"));
+const Subtitles = lazy(() => import("./pages/Subtitles"));
+const DialogueEditor = lazy(() => import("./pages/DialogueEditor"));
+const BudgetEstimator = lazy(() => import("./pages/BudgetEstimator"));
+const SoundEffects = lazy(() => import("./pages/SoundEffects"));
+const VisualEffects = lazy(() => import("./pages/VisualEffects"));
+const Collaboration = lazy(() => import("./pages/Collaboration"));
+
+// ─── Loading fallback ───
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Suspense wrapper for lazy components ───
+function LazyPage({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
 
 // Gated page wrappers — show upgrade prompt if user's subscription doesn't include the feature
-function GatedScriptWriter() { return <SubscriptionGate feature="Script Writer" featureKey="canUseScriptWriter" requiredTier="pro"><ScriptWriter /></SubscriptionGate>; }
-function GatedStoryboard() { return <SubscriptionGate feature="Storyboard" featureKey="canUseStoryboard" requiredTier="pro"><Storyboard /></SubscriptionGate>; }
-function GatedCreditsEditor() { return <SubscriptionGate feature="Credits Editor" featureKey="canUseScriptWriter" requiredTier="pro"><CreditsEditor /></SubscriptionGate>; }
-function GatedShotList() { return <SubscriptionGate feature="Shot List" featureKey="canUseShotList" requiredTier="pro"><ShotList /></SubscriptionGate>; }
-function GatedContinuityCheck() { return <SubscriptionGate feature="Continuity Check" featureKey="canUseContinuityCheck" requiredTier="pro"><ContinuityCheck /></SubscriptionGate>; }
-function GatedColorGrading() { return <SubscriptionGate feature="Color Grading" featureKey="canUseColorGrading" requiredTier="pro"><ColorGrading /></SubscriptionGate>; }
-function GatedLocationScout() { return <SubscriptionGate feature="Location Scout" featureKey="canUseLocationScout" requiredTier="pro"><LocationScout /></SubscriptionGate>; }
-function GatedMoodBoard() { return <SubscriptionGate feature="Mood Board" featureKey="canUseMoodBoard" requiredTier="pro"><MoodBoard /></SubscriptionGate>; }
-function GatedSubtitles() { return <SubscriptionGate feature="Subtitles" featureKey="canUseSubtitles" requiredTier="pro"><Subtitles /></SubscriptionGate>; }
-function GatedDialogueEditor() { return <SubscriptionGate feature="Dialogue Editor" featureKey="canUseDialogueEditor" requiredTier="pro"><DialogueEditor /></SubscriptionGate>; }
-function GatedBudgetEstimator() { return <SubscriptionGate feature="Budget Estimator" featureKey="canUseBudgetEstimator" requiredTier="pro"><BudgetEstimator /></SubscriptionGate>; }
-function GatedSoundEffects() { return <SubscriptionGate feature="Sound Effects" featureKey="canUseSoundEffects" requiredTier="pro"><SoundEffects /></SubscriptionGate>; }
-function GatedVisualEffects() { return <SubscriptionGate feature="Visual Effects" featureKey="canUseVisualEffects" requiredTier="pro"><VisualEffects /></SubscriptionGate>; }
-function GatedCollaboration() { return <SubscriptionGate feature="Collaboration" featureKey="canUseCollaboration" requiredTier="pro"><Collaboration /></SubscriptionGate>; }
+function GatedScriptWriter() { return <LazyPage><SubscriptionGate feature="Script Writer" featureKey="canUseScriptWriter" requiredTier="pro"><ScriptWriter /></SubscriptionGate></LazyPage>; }
+function GatedStoryboard() { return <LazyPage><SubscriptionGate feature="Storyboard" featureKey="canUseStoryboard" requiredTier="pro"><Storyboard /></SubscriptionGate></LazyPage>; }
+function GatedCreditsEditor() { return <LazyPage><SubscriptionGate feature="Credits Editor" featureKey="canUseScriptWriter" requiredTier="pro"><CreditsEditor /></SubscriptionGate></LazyPage>; }
+function GatedShotList() { return <LazyPage><SubscriptionGate feature="Shot List" featureKey="canUseShotList" requiredTier="pro"><ShotList /></SubscriptionGate></LazyPage>; }
+function GatedContinuityCheck() { return <LazyPage><SubscriptionGate feature="Continuity Check" featureKey="canUseContinuityCheck" requiredTier="pro"><ContinuityCheck /></SubscriptionGate></LazyPage>; }
+function GatedColorGrading() { return <LazyPage><SubscriptionGate feature="Color Grading" featureKey="canUseColorGrading" requiredTier="pro"><ColorGrading /></SubscriptionGate></LazyPage>; }
+function GatedLocationScout() { return <LazyPage><SubscriptionGate feature="Location Scout" featureKey="canUseLocationScout" requiredTier="pro"><LocationScout /></SubscriptionGate></LazyPage>; }
+function GatedMoodBoard() { return <LazyPage><SubscriptionGate feature="Mood Board" featureKey="canUseMoodBoard" requiredTier="pro"><MoodBoard /></SubscriptionGate></LazyPage>; }
+function GatedSubtitles() { return <LazyPage><SubscriptionGate feature="Subtitles" featureKey="canUseSubtitles" requiredTier="pro"><Subtitles /></SubscriptionGate></LazyPage>; }
+function GatedDialogueEditor() { return <LazyPage><SubscriptionGate feature="Dialogue Editor" featureKey="canUseDialogueEditor" requiredTier="pro"><DialogueEditor /></SubscriptionGate></LazyPage>; }
+function GatedBudgetEstimator() { return <LazyPage><SubscriptionGate feature="Budget Estimator" featureKey="canUseBudgetEstimator" requiredTier="pro"><BudgetEstimator /></SubscriptionGate></LazyPage>; }
+function GatedSoundEffects() { return <LazyPage><SubscriptionGate feature="Sound Effects" featureKey="canUseSoundEffects" requiredTier="pro"><SoundEffects /></SubscriptionGate></LazyPage>; }
+function GatedVisualEffects() { return <LazyPage><SubscriptionGate feature="Visual Effects" featureKey="canUseVisualEffects" requiredTier="pro"><VisualEffects /></SubscriptionGate></LazyPage>; }
+function GatedCollaboration() { return <LazyPage><SubscriptionGate feature="Collaboration" featureKey="canUseCollaboration" requiredTier="pro"><Collaboration /></SubscriptionGate></LazyPage>; }
 
 function Router() {
   return (
     <Switch>
       {/* Auth pages (no layout) */}
       <Route path="/login" component={Login} />
-      <Route path="/pricing" component={Pricing} />
       <Route path="/register" component={Register} />
-      <Route path="/forgot-password" component={ForgotPassword} />
-      <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/pricing">{() => <LazyPage><Pricing /></LazyPage>}</Route>
+      <Route path="/forgot-password">{() => <LazyPage><ForgotPassword /></LazyPage>}</Route>
+      <Route path="/reset-password">{() => <LazyPage><ResetPassword /></LazyPage>}</Route>
 
       {/* Full-screen pages with subscription gates */}
       <Route path="/projects/:projectId/script/:scriptId" component={GatedScriptWriter} />
@@ -81,20 +109,22 @@ function Router() {
       {/* Dashboard layout pages */}
       <Route>
         <DashboardLayout>
-          <Switch>
-            <Route path="/" component={Home} />
-            <Route path="/projects" component={Projects} />
-            <Route path="/projects/new" component={NewProject} />
-            <Route path="/projects/:id" component={ProjectDetail} />
-            <Route path="/projects/:id/scenes" component={SceneEditor} />
-            <Route path="/movies" component={Movies} />
-            <Route path="/poster-maker" component={AdPosterMaker} />
-            <Route path="/characters" component={Characters} />
-            <Route path="/campaigns" component={CampaignManager} />
-            <Route path="/admin/users" component={AdminUsers} />
-            <Route path="/404" component={NotFound} />
-            <Route component={NotFound} />
-          </Switch>
+          <Suspense fallback={<PageLoader />}>
+            <Switch>
+              <Route path="/" component={Home} />
+              <Route path="/projects">{() => <Projects />}</Route>
+              <Route path="/projects/new">{() => <NewProject />}</Route>
+              <Route path="/projects/:id">{() => <ProjectDetail />}</Route>
+              <Route path="/projects/:id/scenes">{() => <SceneEditor />}</Route>
+              <Route path="/movies">{() => <Movies />}</Route>
+              <Route path="/poster-maker">{() => <AdPosterMaker />}</Route>
+              <Route path="/characters">{() => <Characters />}</Route>
+              <Route path="/campaigns">{() => <CampaignManager />}</Route>
+              <Route path="/admin/users">{() => <AdminUsers />}</Route>
+              <Route path="/404" component={NotFound} />
+              <Route component={NotFound} />
+            </Switch>
+          </Suspense>
         </DashboardLayout>
       </Route>
     </Switch>

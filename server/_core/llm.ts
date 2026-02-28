@@ -311,7 +311,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     // Only enable thinking when not using structured output (json_schema)
     // as they are incompatible with the Gemini model
     payload.thinking = {
-      budget_tokens: 128,
+      budget_tokens: 2048,
     };
   }
 

@@ -11,7 +11,7 @@ import { nanoid } from "nanoid";
 import { processDirectorMessage } from "./directorAssistant";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { TRPCError } from "@trpc/server";
-import { buildVisualDNA, buildScenePrompt, buildSceneBreakdownSystemPrompt, buildTrailerPrompt, ENHANCED_SCENE_SCHEMA } from "./_core/cinematicPromptEngine";
+import { buildVisualDNA, buildScenePrompt, buildSceneBreakdownSystemPrompt, buildTrailerPrompt, ENHANCED_SCENE_SCHEMA, type QualityTier } from "./_core/cinematicPromptEngine";
 import bcrypt from "bcryptjs";
 import { rateLimitAI, rateLimitHeavyAI, rateLimitUpload } from "./_core/rateLimit";
 import { sanitizeText } from "./_core/sanitize";
@@ -156,7 +156,7 @@ export const appRouter = router({
         description: z.string().optional(),
         mode: z.enum(["quick", "manual"]),
         rating: z.enum(["G", "PG", "PG-13", "R"]).optional(),
-        duration: z.number().min(1).max(300).optional(),
+        duration: z.number().min(1).max(180).optional(),
         genre: z.string().optional(),
         plotSummary: z.string().optional(),
         resolution: z.string().optional(),
@@ -180,6 +180,15 @@ export const appRouter = router({
         const projectCount = await db.getUserProjectCount(ctx.user.id);
         requireResourceQuota(ctx.user, "maxProjects", projectCount, "projects");
 
+        // Subscription: check duration limit
+        const limits = getUserLimits(ctx.user);
+        if (input.duration && input.duration > limits.maxDurationMinutes) {
+          const tier = getEffectiveTier(ctx.user);
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `SUBSCRIPTION_REQUIRED: Maximum movie duration on the ${tier} plan is ${limits.maxDurationMinutes} minutes. Please upgrade for longer films.`,
+          });
+        }
         const sanitized = {
           ...input,
           title: sanitizeText(input.title),
@@ -198,7 +207,7 @@ export const appRouter = router({
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         rating: z.enum(["G", "PG", "PG-13", "R"]).optional(),
-        duration: z.number().min(1).max(300).optional(),
+        duration: z.number().min(1).max(180).optional(),
         genre: z.string().optional(),
         plotSummary: z.string().optional(),
         status: z.enum(["draft", "generating", "paused", "completed", "failed"]).optional(),
@@ -620,9 +629,10 @@ export const appRouter = router({
         const characters = project ? await db.getProjectCharacters(project.id) : [];
 
         // Build Visual DNA for consistent style
+        const userTier = getEffectiveTier(ctx.user) as QualityTier;
         const visualDNA = project
-          ? buildVisualDNA(project, characters)
-          : buildVisualDNA({ title: "Untitled", genre: "Drama" }, []);
+          ? buildVisualDNA(project, characters, userTier)
+          : buildVisualDNA({ title: "Untitled", genre: "Drama" }, [], userTier);
 
         // Get all scenes for context
         const allScenes = project ? await db.getProjectScenes(project.id) : [];
@@ -683,8 +693,8 @@ export const appRouter = router({
 
         // Build Visual DNA for consistent style across all bulk-generated images
         const characters = await db.getProjectCharacters(project.id);
-        const visualDNA = buildVisualDNA(project, characters);
-
+        const userTier = getEffectiveTier(ctx.user) as QualityTier;
+        const visualDNA = buildVisualDNA(project, characters, userTier);
         // Collect character photos for reference
         const characterPhotos: Array<{ url: string; mimeType: string }> = [];
         for (const char of characters) {
@@ -692,7 +702,6 @@ export const appRouter = router({
             characterPhotos.push({ url: char.photoUrl, mimeType: "image/jpeg" });
           }
         }
-
         let generated = 0;
         const BATCH = 4;
         for (let i = 0; i < scenesNeedingImages.length; i += BATCH) {
@@ -777,8 +786,8 @@ export const appRouter = router({
 
         // ── Step 1: Build Visual DNA for consistent style across all scenes ──
         const characters = await db.getProjectCharacters(project.id);
-        const visualDNA = buildVisualDNA(project, characters);
-
+        const userTier = getEffectiveTier(ctx.user) as QualityTier;
+        const visualDNA = buildVisualDNA(project, characters, userTier);
         const charDescriptions = characters.map(c => {
           const attrs = (c.attributes as any) || {};
           const parts = [`${c.name}`];
@@ -1038,8 +1047,8 @@ Break this into 8-15 scenes. For each scene, provide:
         }
 
         // Build Visual DNA for consistent trailer style
-        const visualDNA = buildVisualDNA(project, characters);
-
+        const userTier = getEffectiveTier(ctx.user) as QualityTier;
+        const visualDNA = buildVisualDNA(project, characters, userTier);
         // Collect character photos for reference
         const characterPhotos: Array<{ url: string; mimeType: string }> = [];
         for (const char of characters) {
@@ -1047,8 +1056,6 @@ Break this into 8-15 scenes. For each scene, provide:
             characterPhotos.push({ url: char.photoUrl, mimeType: "image/jpeg" });
           }
         }
-
-        // Generate preview images for each trailer scene with Visual DNA
         const trailerScenes = trailerData.selectedScenes || [];
         const trailerImages: string[] = [];
 

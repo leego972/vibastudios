@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /pricing
+Disallow: /api/
+Disallow: /api/trpc/
+
+Sitemap: https://virellestudios.com/sitemap.xml

@@ -12,7 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Zap, Layers, Loader2, BookOpen, Film, Sparkles } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { ArrowLeft, Zap, Layers, Loader2, BookOpen, Film, Sparkles, Lock } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useLocation, useSearch } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -32,13 +34,15 @@ export default function NewProject() {
   const params = new URLSearchParams(searchString);
   const initialMode = params.get("mode") === "manual" ? "manual" : "quick";
 
+  const { limits, tier, isFree } = useSubscription();
+  const maxDuration = (limits as any)?.maxDurationMinutes || 180;
   const [mode, setMode] = useState<"quick" | "manual">(initialMode as "quick" | "manual");
   // Basic Info
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [genre, setGenre] = useState("");
   const [rating, setRating] = useState<string>("PG-13");
-  const [duration, setDuration] = useState<number>(90);
+  const [duration, setDuration] = useState<number>(Math.min(90, maxDuration));
   const [plotSummary, setPlotSummary] = useState("");
   const [resolution, setResolution] = useState("1920x1080");
   const [quality, setQuality] = useState<string>("high");
@@ -242,19 +246,47 @@ export default function NewProject() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="duration" className="text-xs text-muted-foreground">
-                      Duration (min)
-                    </Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      min={1}
-                      max={300}
-                      value={duration}
-                      onChange={(e) => setDuration(parseInt(e.target.value) || 90)}
-                      className="bg-background/50 h-9 text-sm"
-                    />
+                  <div className="space-y-1.5 sm:col-span-1 col-span-full">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="duration" className="text-xs text-muted-foreground">
+                        Duration
+                      </Label>
+                      <span className="text-xs font-medium text-foreground">
+                        {duration >= 60 ? `${Math.floor(duration / 60)}h ${duration % 60 > 0 ? `${duration % 60}m` : ''}` : `${duration}m`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Slider
+                        value={[duration]}
+                        onValueChange={(v) => setDuration(v[0])}
+                        min={1}
+                        max={maxDuration}
+                        step={1}
+                        className="flex-1"
+                      />
+                      <Input
+                        id="duration"
+                        type="number"
+                        min={1}
+                        max={maxDuration}
+                        value={duration}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!isNaN(val) && val >= 1 && val <= maxDuration) setDuration(val);
+                        }}
+                        className="bg-background/50 h-9 text-sm w-16 text-center"
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground/60">
+                      <span>1 min</span>
+                      <span>{maxDuration >= 60 ? `${Math.floor(maxDuration / 60)}h${maxDuration % 60 > 0 ? ` ${maxDuration % 60}m` : ''}` : `${maxDuration}m`}</span>
+                    </div>
+                    {maxDuration < 180 && (
+                      <p className="text-[10px] text-amber-500 flex items-center gap-1 mt-1">
+                        <Lock className="h-3 w-3" />
+                        Upgrade to unlock up to 3 hours
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Resolution</Label>
