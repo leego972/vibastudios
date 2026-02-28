@@ -877,3 +877,62 @@ export async function updateUserRole(userId: number, role: "user" | "admin") {
     .set({ role, updatedAt: new Date() })
     .where(eq(users.id, userId));
 }
+
+// ─── Subscription ───
+export async function updateUserSubscription(userId: number, data: {
+  subscriptionTier?: "free" | "pro" | "industry";
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string | null;
+  subscriptionStatus?: "active" | "canceled" | "past_due" | "unpaid" | "trialing" | "none";
+  subscriptionCurrentPeriodEnd?: Date | null;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+}
+
+export async function getUserByStripeCustomerId(customerId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, customerId)).limit(1);
+  return user ?? null;
+}
+
+export async function incrementGenerationCount(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) return;
+
+  const now = new Date();
+  const resetAt = user.monthlyGenerationsResetAt;
+
+  // If no reset date or past reset date, reset counter
+  if (!resetAt || now > new Date(resetAt)) {
+    const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    await db.update(users).set({
+      monthlyGenerationsUsed: 1,
+      monthlyGenerationsResetAt: nextReset,
+    }).where(eq(users.id, userId));
+  } else {
+    await db.update(users).set({
+      monthlyGenerationsUsed: (user.monthlyGenerationsUsed || 0) + 1,
+    }).where(eq(users.id, userId));
+  }
+}
+
+export async function getUserProjectCount(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select().from(projects).where(eq(projects.userId, userId));
+  return result.length;
+}
+
+export async function getUserMovieCount(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select().from(movies).where(eq(movies.userId, userId));
+  return result.length;
+}

@@ -20,6 +20,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   LayoutDashboard,
@@ -32,6 +33,7 @@ import {
   Clapperboard,
   Shield,
   Megaphone,
+  CreditCard,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -45,6 +47,7 @@ const menuItems = [
   { icon: Clapperboard, label: "My Movies", path: "/movies" },
   { icon: Users, label: "Characters", path: "/characters" },
   { icon: Megaphone, label: "Ad & Poster Maker", path: "/poster-maker" },
+  { icon: CreditCard, label: "Subscription", path: "/pricing" },
 ];
 
 const adminMenuItems = [
@@ -109,6 +112,7 @@ function DashboardLayoutContent({
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const { theme, toggleTheme, switchable } = useTheme();
+  const { tier, isFree } = useSubscription();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -258,6 +262,13 @@ function DashboardLayoutContent({
                     <p className="text-xs text-muted-foreground truncate mt-1">
                       {user?.email || ""}
                     </p>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider mt-1 ${
+                      tier === "industry" ? "bg-violet-500/10 text-violet-400 border border-violet-500/20" :
+                      tier === "pro" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                      "bg-muted text-muted-foreground border border-border"
+                    }`}>
+                      {tier === "industry" ? "Industry" : tier === "pro" ? "Pro" : "Free"}
+                    </span>
                   </div>
                 </button>
               </DropdownMenuTrigger>

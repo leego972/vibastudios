@@ -18,6 +18,8 @@ import { sanitizeText } from "./_core/sanitize";
 import { logger } from "./_core/logger";
 import { createSessionToken } from "./_core/context";
 import { notifyOwner } from "./_core/notification";
+import { getEffectiveTier, getUserLimits, requireFeature, requireGenerationQuota, requireResourceQuota, getOrCreateStripeCustomer, createCheckoutSession, createBillingPortalSession, TIER_LIMITS, type SubscriptionTier } from "./_core/subscription";
+import { ENV } from "./_core/env";
 
 export const appRouter = router({
   system: systemRouter,
@@ -175,6 +177,10 @@ export const appRouter = router({
         storyResolution: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        // Subscription: check project quota
+        const projectCount = await db.getUserProjectCount(ctx.user.id);
+        requireResourceQuota(ctx.user, "maxProjects", projectCount, "projects");
+
         const sanitized = {
           ...input,
           title: sanitizeText(input.title),
@@ -312,6 +318,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAICharacterGen", "AI Character Generation");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const f = input.features;
         const promptParts = [
           "Ultra-photorealistic Hollywood A-list actor headshot, indistinguishable from a real photograph,",
@@ -366,6 +375,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAICharacterGen", "AI Character Generation");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         // Step 1: Upload the reference photo to S3
         const photoBuffer = Buffer.from(input.photoBase64, "base64");
         const photoKey = `uploads/${ctx.user.id}/ref-${nanoid()}.jpg`;
@@ -599,6 +611,8 @@ export const appRouter = router({
       .input(z.object({ sceneId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const scene = await db.getSceneById(input.sceneId);
         if (!scene) throw new Error("Scene not found");
 
@@ -659,6 +673,9 @@ export const appRouter = router({
       .input(z.object({ projectId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         rateLimitHeavyAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseBulkGenerate", "Bulk Generate Previews");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
         const scenes = await db.getProjectScenes(project.id);
@@ -733,6 +750,11 @@ export const appRouter = router({
       .input(z.object({ projectId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         rateLimitHeavyAI(ctx.user.id);
+        // Subscription: check feature access and generation quota
+        requireFeature(ctx.user, "canUseQuickGenerate", "Quick Generate");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
+
         logger.aiGeneration("quickGenerate started", ctx.user.id, { projectId: input.projectId });
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
@@ -940,6 +962,9 @@ Break this into 8-15 scenes. For each scene, provide:
       .input(z.object({ projectId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         rateLimitHeavyAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseTrailerGeneration", "Trailer Generation");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
 
@@ -1153,6 +1178,9 @@ Break this into 8-15 scenes. For each scene, provide:
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAIScriptGen", "AI Script Generation");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
 
@@ -1211,6 +1239,9 @@ Break this into 8-15 scenes. For each scene, provide:
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAIScriptGen", "AI Script Assistant");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const script = await db.getScriptById(input.scriptId);
         if (!script) throw new Error("Script not found");
 
@@ -1384,6 +1415,9 @@ Break this into 8-15 scenes. For each scene, provide:
       .input(z.object({ projectId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseShotList", "Shot List Generator");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
         const allScenes = await db.getProjectScenes(project.id);
@@ -1459,6 +1493,9 @@ Break this into 8-15 scenes. For each scene, provide:
       .input(z.object({ projectId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseContinuityCheck", "Continuity Check");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
         const allScenes = await db.getProjectScenes(project.id);
@@ -1589,6 +1626,9 @@ Break this into 8-15 scenes. For each scene, provide:
       .input(z.object({ projectId: z.number(), sceneDescription: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAILocationSuggest", "AI Location Suggestions");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
         const scenes = await db.getProjectScenes(input.projectId);
@@ -1774,6 +1814,9 @@ Break this into 8-15 scenes. For each scene, provide:
       .input(z.object({ projectId: z.number(), language: z.string().default("en"), languageName: z.string().default("English") }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAISubtitleGen", "AI Subtitle Generation");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
         const scenes = await db.getProjectScenes(input.projectId);
@@ -1844,6 +1887,9 @@ Break this into 8-15 scenes. For each scene, provide:
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAISubtitleGen", "AI Subtitle Translation");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const source = await db.getSubtitleById(input.subtitleId);
         if (!source) throw new Error("Source subtitle not found");
         const entries = source.entries as any[] || [];
@@ -1961,6 +2007,9 @@ Break this into 8-15 scenes. For each scene, provide:
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAIDialogueGen", "AI Dialogue Suggestions");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, 0).catch(() => null);
         const response = await invokeLLM({
           messages: [
@@ -2032,6 +2081,9 @@ Generate 3 dialogue line options for this character.`,
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAIDialogueGen", "AI Scene Dialogue Generation");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, 0).catch(() => null);
         const scene = await db.getSceneById(input.sceneId);
         const chars = await db.getProjectCharacters(input.projectId);
@@ -2117,6 +2169,9 @@ Generate the full dialogue for this scene.`,
       .input(z.object({ projectId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAIBudgetGen", "AI Budget Generation");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
         const scenes = await db.getProjectScenes(input.projectId);
@@ -2537,6 +2592,7 @@ Generate a detailed production budget estimate.`,
         role: z.enum(["viewer", "editor", "producer", "director"]).default("editor"),
       }))
       .mutation(async ({ ctx, input }) => {
+        requireFeature(ctx.user, "canUseCollaboration", "Collaboration");
         const token = nanoid(32);
         const collab = await db.createCollaborator({
           projectId: input.projectId,
@@ -2628,6 +2684,7 @@ Generate a detailed production budget estimate.`,
         exportType: z.enum(["film", "scenes", "trailer"]),
       }))
       .mutation(async ({ ctx, input }) => {
+        requireFeature(ctx.user, "canExportMovies", "Movie Export");
         const project = await db.getProjectById(input.projectId, ctx.user.id);
         if (!project) throw new Error("Project not found");
         const scenes = await db.getProjectScenes(project.id);
@@ -2781,6 +2838,7 @@ Generate a detailed production budget estimate.`,
         imageUrls: z.array(z.string()).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        requireFeature(ctx.user, "canUseDirectorAssistant", "Director AI Assistant");
         // Build user message with attachment info if present
         let userContent = input.message;
         if (input.attachmentUrl) {
@@ -2972,6 +3030,9 @@ Rules:
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAdPosterMaker", "Ad & Poster Maker");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const result = await generateImage({
           prompt: input.prompt,
         });
@@ -2987,6 +3048,9 @@ Rules:
       }))
       .mutation(async ({ ctx, input }) => {
         rateLimitAI(ctx.user.id);
+        requireFeature(ctx.user, "canUseAdPosterMaker", "Ad & Poster Maker");
+        requireGenerationQuota(ctx.user);
+        await db.incrementGenerationCount(ctx.user.id);
         const templateDescriptions: Record<string, string> = {
           "poster": "classic movie poster",
           "social-square": "social media square post",
@@ -3041,6 +3105,130 @@ Rules:
           return { title: null, tagline: null, credits: null };
         }
       }),
+  }),
+
+  // ─── Subscription / Billing ─────────────────────────────────────────────────
+  subscription: router({
+    // Get current user's subscription status and limits
+    status: protectedProcedure.query(async ({ ctx }) => {
+      const user = ctx.user;
+      const tier = getEffectiveTier(user);
+      const limits = getUserLimits(user);
+      return {
+        tier,
+        status: user.subscriptionStatus || "none",
+        currentPeriodEnd: user.subscriptionCurrentPeriodEnd,
+        generationsUsed: user.monthlyGenerationsUsed || 0,
+        generationsLimit: limits.maxGenerationsPerMonth,
+        limits,
+        isAdmin: user.email === ENV.adminEmail || user.role === "admin",
+        stripePublishableKey: ENV.stripePublishableKey,
+      };
+    }),
+
+    // Create a Stripe checkout session
+    createCheckout: protectedProcedure
+      .input(z.object({
+        tier: z.enum(["pro", "industry"]),
+        successUrl: z.string().url(),
+        cancelUrl: z.string().url(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const priceId = input.tier === "pro" ? ENV.stripeProPriceId : ENV.stripeIndustryPriceId;
+        if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Stripe price not configured" });
+
+        const customerId = await getOrCreateStripeCustomer(ctx.user);
+        // Save customer ID to user
+        await db.updateUserSubscription(ctx.user.id, { stripeCustomerId: customerId });
+
+        const url = await createCheckoutSession(
+          ctx.user,
+          customerId,
+          priceId,
+          input.successUrl,
+          input.cancelUrl,
+        );
+        return { url };
+      }),
+
+    // Create a Stripe billing portal session
+    createBillingPortal: protectedProcedure
+      .input(z.object({ returnUrl: z.string().url() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user.stripeCustomerId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "No active subscription found" });
+        }
+        const url = await createBillingPortalSession(ctx.user.stripeCustomerId, input.returnUrl);
+        return { url };
+      }),
+
+    // Get pricing info (public)
+    pricing: publicProcedure.query(async () => {
+      return {
+        tiers: [
+          {
+            id: "free" as const,
+            name: "Free",
+            price: 0,
+            priceLabel: "$0",
+            interval: "forever",
+            description: "Get started with basic film creation",
+            limits: TIER_LIMITS.free,
+            highlights: [
+              "1 project",
+              "3 AI generations/month",
+              "5 scenes per project",
+              "3 characters per project",
+              "720p resolution",
+              "1 movie export",
+            ],
+          },
+          {
+            id: "pro" as const,
+            name: "Pro",
+            price: 200,
+            priceLabel: "$200",
+            interval: "month",
+            description: "Full creative toolkit for serious filmmakers",
+            limits: TIER_LIMITS.pro,
+            highlights: [
+              "25 projects",
+              "100 AI generations/month",
+              "50 scenes per project",
+              "30 characters per project",
+              "1080p HD resolution",
+              "All creative tools",
+              "Director AI assistant",
+              "Trailer generation",
+              "Script writer & dialogue editor",
+              "Sound & visual effects",
+              "Collaboration (5 members)",
+              "Ad & poster maker",
+            ],
+          },
+          {
+            id: "industry" as const,
+            name: "Industry",
+            price: 1000,
+            priceLabel: "$1,000",
+            interval: "month",
+            description: "Unlimited power for studios and production houses",
+            limits: TIER_LIMITS.industry,
+            highlights: [
+              "Unlimited projects",
+              "Unlimited AI generations",
+              "Unlimited scenes & characters",
+              "4K Ultra HD resolution",
+              "All Pro features",
+              "Ultra quality exports",
+              "Unlimited collaborators",
+              "Unlimited movie exports",
+              "Priority support",
+            ],
+          },
+        ],
+      };
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;

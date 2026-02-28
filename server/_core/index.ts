@@ -8,6 +8,9 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { logger } from "./logger";
+import { stripe, priceIdToTier } from "./subscription";
+import { ENV } from "./env";
+import * as db from "../db";
 
 const startedAt = new Date();
 
@@ -61,6 +64,105 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  // Stripe webhook endpoint — MUST be before json body parser
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    if (!stripe) {
+      res.status(500).json({ error: "Stripe not configured" });
+      return;
+    }
+
+    const sig = req.headers["stripe-signature"] as string;
+    let event;
+
+    try {
+      if (ENV.stripeWebhookSecret) {
+        event = stripe.webhooks.constructEvent(req.body, sig, ENV.stripeWebhookSecret);
+      } else {
+        // In development without webhook secret, parse directly
+        event = JSON.parse(req.body.toString());
+      }
+    } catch (err: any) {
+      logger.error(`Stripe webhook signature verification failed: ${err.message}`);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+      return;
+    }
+
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object;
+          const userId = parseInt(session.metadata?.userId || "0");
+          const subscriptionId = session.subscription as string;
+          if (userId && subscriptionId) {
+            const sub = await stripe.subscriptions.retrieve(subscriptionId);
+            const priceId = sub.items.data[0]?.price?.id || "";
+            const tier = priceIdToTier(priceId);
+            await db.updateUserSubscription(userId, {
+              stripeCustomerId: session.customer as string,
+              stripeSubscriptionId: subscriptionId,
+              subscriptionTier: tier,
+              subscriptionStatus: "active",
+              subscriptionCurrentPeriodEnd: new Date((sub as any).current_period_end * 1000),
+            });
+            logger.info(`Subscription activated for user ${userId}: ${tier}`);
+          }
+          break;
+        }
+        case "customer.subscription.updated": {
+          const sub = event.data.object;
+          const userId = parseInt(sub.metadata?.userId || "0");
+          if (userId) {
+            const priceId = sub.items.data[0]?.price?.id || "";
+            const tier = priceIdToTier(priceId);
+            const status = sub.status === "active" ? "active" 
+              : sub.status === "past_due" ? "past_due"
+              : sub.status === "canceled" ? "canceled"
+              : sub.status === "trialing" ? "trialing"
+              : sub.status === "unpaid" ? "unpaid" : "none";
+            await db.updateUserSubscription(userId, {
+              subscriptionTier: status === "active" || status === "trialing" ? tier : "free",
+              subscriptionStatus: status,
+              subscriptionCurrentPeriodEnd: new Date(sub.current_period_end * 1000),
+            });
+            logger.info(`Subscription updated for user ${userId}: ${tier} (${status})`);
+          }
+          break;
+        }
+        case "customer.subscription.deleted": {
+          const sub = event.data.object;
+          const userId = parseInt(sub.metadata?.userId || "0");
+          if (userId) {
+            await db.updateUserSubscription(userId, {
+              subscriptionTier: "free",
+              subscriptionStatus: "canceled",
+              stripeSubscriptionId: null,
+              subscriptionCurrentPeriodEnd: null,
+            });
+            logger.info(`Subscription canceled for user ${userId}`);
+          }
+          break;
+        }
+        case "invoice.payment_failed": {
+          const invoice = event.data.object;
+          const customerId = invoice.customer as string;
+          const user = await db.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await db.updateUserSubscription(user.id, {
+              subscriptionStatus: "past_due",
+            });
+            logger.warn(`Payment failed for user ${user.id}`);
+          }
+          break;
+        }
+      }
+
+      res.json({ received: true });
+    } catch (err: any) {
+      logger.error(`Stripe webhook handler error: ${err.message}`);
+      res.status(500).json({ error: "Webhook handler failed" });
+    }
+  });
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));

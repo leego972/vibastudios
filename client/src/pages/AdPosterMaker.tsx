@@ -56,6 +56,8 @@ import {
   Italic,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useSubscription } from "@/hooks/useSubscription";
+import { FeatureGate } from "@/components/UpgradePrompt";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -213,6 +215,7 @@ export default function AdPosterMaker() {
   const [, setLocation] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const { canUseFeature, tier, isLoading: subLoading } = useSubscription();
 
   // Project selection
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -515,6 +518,16 @@ export default function AdPosterMaker() {
 
   const selectedElement = poster.textElements.find((el) => el.id === poster.selectedElementId);
   const config = TEMPLATE_CONFIG[poster.templateType];
+
+  if (!canUseFeature("canUseAdPosterMaker")) {
+    return (
+      <div className="p-4 sm:p-6">
+        <FeatureGate feature="Ad & Poster Maker" requiredTier="pro" currentTier={tier} hasAccess={false}>
+          <div />
+        </FeatureGate>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
