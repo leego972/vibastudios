@@ -52,6 +52,7 @@ const menuItems = [
 
 const adminMenuItems = [
   { icon: Shield, label: "User Management", path: "/admin/users" },
+  { icon: Megaphone, label: "Campaign Manager", path: "/campaigns" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

@@ -19,6 +19,7 @@ import { logger } from "./_core/logger";
 import { createSessionToken } from "./_core/context";
 import { notifyOwner } from "./_core/notification";
 import { getEffectiveTier, getUserLimits, requireFeature, requireGenerationQuota, requireResourceQuota, getOrCreateStripeCustomer, createCheckoutSession, createBillingPortalSession, TIER_LIMITS, type SubscriptionTier } from "./_core/subscription";
+import { AD_PLATFORMS, generateAdContent, generateCampaignContent, createCampaign, getCampaign, listCampaigns, updateCampaignStatus, deleteCampaign, addPostRecord, getPlatformsByCategory, getRecommendedPlatforms, type AdContentType, type AdCampaign } from "./_core/advertisingEngine";
 import { ENV } from "./_core/env";
 
 export const appRouter = router({
@@ -3229,6 +3230,120 @@ Rules:
         ],
       };
     }),
+  }),
+
+  // ============================================================
+  // ADVERTISING SYSTEM
+  // ============================================================
+  advertising: router({
+    // List all available platforms
+    platforms: adminProcedure.query(() => {
+      return {
+        platforms: AD_PLATFORMS,
+        byCategory: getPlatformsByCategory(),
+      };
+    }),
+
+    // Get recommended platforms for a content type
+    recommendedPlatforms: adminProcedure
+      .input(z.object({ contentType: z.string() }))
+      .query(({ input }) => {
+        return getRecommendedPlatforms(input.contentType as AdContentType);
+      }),
+
+    // List all campaigns
+    listCampaigns: adminProcedure.query(() => {
+      return listCampaigns();
+    }),
+
+    // Get a specific campaign
+    getCampaign: adminProcedure
+      .input(z.object({ id: z.string() }))
+      .query(({ input }) => {
+        const campaign = getCampaign(input.id);
+        if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
+        return campaign;
+      }),
+
+    // Create a new campaign
+    createCampaign: adminProcedure
+      .input(z.object({
+        name: z.string().min(1).max(200),
+        platforms: z.array(z.string()).min(1),
+        contentType: z.enum(["launch_announcement", "feature_showcase", "behind_the_scenes", "user_testimonial", "comparison", "tutorial_teaser", "milestone", "free_tier_promo"]),
+        schedule: z.enum(["once", "daily", "weekly", "biweekly", "monthly"]),
+      }))
+      .mutation(({ input }) => {
+        return createCampaign(input.name, input.platforms, input.contentType, input.schedule);
+      }),
+
+    // Generate content for a campaign
+    generateContent: adminProcedure
+      .input(z.object({
+        campaignId: z.string(),
+        customContext: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await rateLimitHeavyAI(ctx.user!.id);
+        logger.info("advertising.generateContent", { campaignId: input.campaignId, userId: ctx.user!.id });
+        return generateCampaignContent(input.campaignId, input.customContext);
+      }),
+
+    // Generate content for a single platform (preview)
+    generateSingleContent: adminProcedure
+      .input(z.object({
+        platformId: z.string(),
+        contentType: z.enum(["launch_announcement", "feature_showcase", "behind_the_scenes", "user_testimonial", "comparison", "tutorial_teaser", "milestone", "free_tier_promo"]),
+        customContext: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await rateLimitAI(ctx.user!.id);
+        return generateAdContent(input.platformId, input.contentType, input.customContext);
+      }),
+
+    // Update campaign status
+    updateStatus: adminProcedure
+      .input(z.object({
+        id: z.string(),
+        status: z.enum(["draft", "active", "paused", "completed"]),
+      }))
+      .mutation(({ input }) => {
+        updateCampaignStatus(input.id, input.status);
+        return { success: true };
+      }),
+
+    // Record a post to a platform
+    recordPost: adminProcedure
+      .input(z.object({
+        campaignId: z.string(),
+        platformId: z.string(),
+        status: z.enum(["success", "failed", "pending", "scheduled"]),
+        postUrl: z.string().optional(),
+        error: z.string().optional(),
+        contentPreview: z.string(),
+      }))
+      .mutation(({ input }) => {
+        const platform = AD_PLATFORMS.find(p => p.id === input.platformId);
+        addPostRecord(input.campaignId, {
+          platformId: input.platformId,
+          platformName: platform?.name || input.platformId,
+          postedAt: new Date().toISOString(),
+          status: input.status,
+          postUrl: input.postUrl,
+          error: input.error,
+          contentPreview: input.contentPreview,
+        });
+        return { success: true };
+      }),
+
+    // Delete a campaign
+    deleteCampaign: adminProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(({ input }) => {
+        const deleted = deleteCampaign(input.id);
+        if (!deleted) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
+        return { success: true };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

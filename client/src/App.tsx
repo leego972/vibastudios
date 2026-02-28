@@ -34,6 +34,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AdminUsers from "./pages/AdminUsers";
 import Pricing from "./pages/Pricing";
+import CampaignManager from "./pages/CampaignManager";
 
 // Gated page wrappers — show upgrade prompt if user's subscription doesn't include the feature
 function GatedScriptWriter() { return <SubscriptionGate feature="Script Writer" featureKey="canUseScriptWriter" requiredTier="pro"><ScriptWriter /></SubscriptionGate>; }
@@ -89,6 +90,7 @@ function Router() {
             <Route path="/movies" component={Movies} />
             <Route path="/poster-maker" component={AdPosterMaker} />
             <Route path="/characters" component={Characters} />
+            <Route path="/campaigns" component={CampaignManager} />
             <Route path="/admin/users" component={AdminUsers} />
             <Route path="/404" component={NotFound} />
             <Route component={NotFound} />
