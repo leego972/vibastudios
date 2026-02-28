@@ -209,15 +209,34 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
-
-const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+/**
+ * Resolve the API URL and key.
+ * Priority: OpenAI API (user's key) > Forge API (built-in)
+ * This ensures we don't hit Forge quota limits.
+ */
+const resolveProvider = (): { url: string; apiKey: string; model: string } => {
+  // Primary: Use OpenAI API with user's key
+  if (ENV.openaiApiKey) {
+    return {
+      url: "https://api.openai.com/v1/chat/completions",
+      apiKey: ENV.openaiApiKey,
+      model: "gpt-4.1-mini",  // Fast, cheap, and very capable
+    };
   }
+
+  // Fallback: Use Forge API (built-in)
+  if (ENV.forgeApiKey) {
+    const baseUrl = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
+      ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
+      : "https://forge.manus.im/v1/chat/completions";
+    return {
+      url: baseUrl,
+      apiKey: ENV.forgeApiKey,
+      model: "gemini-2.5-flash",
+    };
+  }
+
+  throw new Error("No LLM API key configured. Set OPENAI_API_KEY or BUILT_IN_FORGE_API_KEY.");
 };
 
 const normalizeResponseFormat = ({
@@ -266,7 +285,7 @@ const normalizeResponseFormat = ({
 };
 
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
-  assertApiKey();
+  const provider = resolveProvider();
 
   const {
     messages,
@@ -280,7 +299,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    model: provider.model,
     messages: messages.map(normalizeMessage),
   };
 
@@ -307,7 +326,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 
   if (normalizedResponseFormat) {
     payload.response_format = normalizedResponseFormat;
-  } else {
+  } else if (provider.model.startsWith("gemini")) {
     // Only enable thinking when not using structured output (json_schema)
     // as they are incompatible with the Gemini model
     payload.thinking = {
@@ -315,11 +334,108 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     };
   }
 
-  const response = await fetch(resolveApiUrl(), {
+  console.log(`[LLM] Using provider: ${provider.model} at ${provider.url.substring(0, 40)}...`);
+
+  const response = await fetch(provider.url, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${provider.apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    // If OpenAI fails, try Forge as fallback (and vice versa)
+    if (provider.url.includes("openai.com") && ENV.forgeApiKey) {
+      console.warn(`[LLM] OpenAI failed (${response.status}), trying Forge fallback...`);
+      return invokeLLMWithProvider(params, {
+        url: ENV.forgeApiUrl
+          ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
+          : "https://forge.manus.im/v1/chat/completions",
+        apiKey: ENV.forgeApiKey,
+        model: "gemini-2.5-flash",
+      });
+    }
+
+    if (!provider.url.includes("openai.com") && ENV.openaiApiKey) {
+      console.warn(`[LLM] Forge failed (${response.status}), trying OpenAI fallback...`);
+      return invokeLLMWithProvider(params, {
+        url: "https://api.openai.com/v1/chat/completions",
+        apiKey: ENV.openaiApiKey,
+        model: "gpt-4.1-mini",
+      });
+    }
+
+    throw new Error(
+      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+    );
+  }
+
+  return (await response.json()) as InvokeResult;
+}
+
+/**
+ * Internal: invoke LLM with a specific provider (used for fallback).
+ */
+async function invokeLLMWithProvider(
+  params: InvokeParams,
+  provider: { url: string; apiKey: string; model: string }
+): Promise<InvokeResult> {
+  const {
+    messages,
+    tools,
+    toolChoice,
+    tool_choice,
+    outputSchema,
+    output_schema,
+    responseFormat,
+    response_format,
+  } = params;
+
+  const payload: Record<string, unknown> = {
+    model: provider.model,
+    messages: messages.map(normalizeMessage),
+  };
+
+  if (tools && tools.length > 0) {
+    payload.tools = tools;
+  }
+
+  const normalizedToolChoice = normalizeToolChoice(
+    toolChoice || tool_choice,
+    tools
+  );
+  if (normalizedToolChoice) {
+    payload.tool_choice = normalizedToolChoice;
+  }
+
+  payload.max_tokens = 32768;
+
+  const normalizedResponseFormat = normalizeResponseFormat({
+    responseFormat,
+    response_format,
+    outputSchema,
+    output_schema,
+  });
+
+  if (normalizedResponseFormat) {
+    payload.response_format = normalizedResponseFormat;
+  } else if (provider.model.startsWith("gemini")) {
+    payload.thinking = {
+      budget_tokens: 2048,
+    };
+  }
+
+  console.log(`[LLM] Fallback provider: ${provider.model} at ${provider.url.substring(0, 40)}...`);
+
+  const response = await fetch(provider.url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${provider.apiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -327,7 +443,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+      `LLM fallback invoke failed: ${response.status} ${response.statusText} – ${errorText}`
     );
   }
 
