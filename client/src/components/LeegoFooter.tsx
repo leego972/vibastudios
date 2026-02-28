@@ -5,6 +5,7 @@ export default function LeegoFooter() {
         src="/leego-logo.png"
         alt="Created by Leego"
         className="h-24 sm:h-28 w-auto object-contain"
+        style={{ mixBlendMode: "lighten" }}
         draggable={false}
       />
     </div>
