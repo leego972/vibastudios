@@ -116,24 +116,7 @@ export default function ScriptWriter() {
   const { user, loading } = useAuth();
   const pid = parseInt(projectId || "0");
 
-  // Auth guard — redirect to login if not authenticated
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Please sign in to access the Script Writer.</p>
-        <Button onClick={() => navigate("/")}>Go to Login</Button>
-      </div>
-    );
-  }
-
+  // ALL hooks must be called before any early returns (React Rules of Hooks)
   const [elements, setElements] = useState<ScriptElement[]>([
     { id: crypto.randomUUID(), type: "scene-heading", text: "" },
   ]);
@@ -236,6 +219,24 @@ export default function ScriptWriter() {
     }, 3000);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [isDirty, elements, title]);
+
+  // Auth guard — must come AFTER all hooks
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">Please sign in to access the Script Writer.</p>
+        <Button onClick={() => navigate("/")}>Go to Login</Button>
+      </div>
+    );
+  }
 
   const updateElement = (id: string, text: string) => {
     setElements((prev) => prev.map((el) => (el.id === id ? { ...el, text } : el)));
