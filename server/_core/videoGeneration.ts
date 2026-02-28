@@ -12,7 +12,7 @@ import { ENV } from "./env";
 
 // Use the real OpenAI API endpoint for Sora (not the proxy)
 const openai = new OpenAI({
-  apiKey: ENV.forgeApiKey || process.env.OPENAI_API_KEY || "",
+  apiKey: ENV.openaiApiKey || process.env.OPENAI_API_KEY || "",
   baseURL: "https://api.openai.com/v1",
 });
 
