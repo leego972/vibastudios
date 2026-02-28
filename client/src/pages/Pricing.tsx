@@ -5,6 +5,7 @@ import { Check, X, Crown, Zap, Building2, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import LeegoFooter from "@/components/LeegoFooter";
 
 export default function Pricing() {
   const [, setLocation] = useLocation();
@@ -275,6 +276,7 @@ export default function Pricing() {
             ← Back to Dashboard
           </Button>
         </div>
+        <LeegoFooter />
       </div>
     </div>
   );

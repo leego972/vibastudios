@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Film, Eye, EyeOff, Loader2 } from "lucide-react";
+import LeegoFooter from "@/components/LeegoFooter";
 
 export default function Register() {
   const [, navigate] = useLocation();
@@ -153,6 +154,7 @@ export default function Register() {
           </form>
         </Card>
       </div>
+      <LeegoFooter />
     </div>
   );
 }

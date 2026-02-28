@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Film, Loader2, ArrowLeft, Mail } from "lucide-react";
+import LeegoFooter from "@/components/LeegoFooter";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -119,6 +120,7 @@ export default function ForgotPassword() {
           )}
         </Card>
       </div>
+      <LeegoFooter />
     </div>
   );
 }

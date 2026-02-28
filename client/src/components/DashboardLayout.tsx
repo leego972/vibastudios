@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import LeegoFooter from "@/components/LeegoFooter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -314,7 +315,10 @@ function DashboardLayoutContent({
             )}
           </div>
         )}
-        <main className="flex-1 p-4 sm:p-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>{children}</main>
+        <main className="flex-1 p-4 sm:p-6 flex flex-col min-h-0" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+          <div className="flex-1">{children}</div>
+          <LeegoFooter />
+        </main>
       </SidebarInset>
     </>
   );

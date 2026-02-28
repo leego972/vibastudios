@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Film, Loader2, ArrowLeft, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
+import LeegoFooter from "@/components/LeegoFooter";
 
 export default function ResetPassword() {
   const [, navigate] = useLocation();
@@ -232,6 +233,7 @@ export default function ResetPassword() {
           </form>
         </Card>
       </div>
+      <LeegoFooter />
     </div>
   );
 }
