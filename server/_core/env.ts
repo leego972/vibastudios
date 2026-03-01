@@ -19,6 +19,8 @@ export const ENV = {
   openaiApiKey: process.env.OPENAI_API_KEY || Buffer.from("c2stcHJvai05S0lrSy10LU00ZHFxSzFRM01vY1hDSDVJT1BzY0Y2NzBMWVkxYzg3VmlMRWtYV0NoaDBCRnNOX1locmJHQ2tETmtLYm15V00zYlQzQmxia0ZKMURtbTg5RURkRHB2SEhINFlqTGRXNHdPQ2VPSjNZX3BSZFljVk41MUlDdXBMRHVlenZQWDMxMWwzdEItV2haQ2Y5ZFhWcG1nb0E=", "base64").toString("utf-8"),
   // Runway ML (video generation)
   runwayApiKey: process.env.RUNWAYML_API_SECRET || Buffer.from("eHZTek1Ia1lNRjBDYWNkZ0NzbnFEZ2NMVWprWWlnc3E=", "base64").toString("utf-8"),
+  // Pollinations (free video generation)
+  pollinationsApiKey: process.env.POLLINATIONS_API_KEY || "sk_KZ0EBVOHXycDd8YnvEZAvLDGnvhK33SP",
   // Admin
   adminEmail: process.env.ADMIN_EMAIL ?? "leego972@gmail.com",
 };
