@@ -31,6 +31,30 @@ export const users = mysqlTable("users", {
   userHfToken: text("userHfToken"),           // Hugging Face token (free inference API)
   preferredVideoProvider: varchar("preferredVideoProvider", { length: 32 }), // runway, openai, replicate, fal, luma, huggingface
   apiKeysUpdatedAt: timestamp("apiKeysUpdatedAt"),
+  // ─── Profile & Business Details ───
+  phone: varchar("phone", { length: 32 }),
+  avatarUrl: text("avatarUrl"),
+  bio: text("bio"),
+  country: varchar("country", { length: 128 }),
+  city: varchar("city", { length: 128 }),
+  timezone: varchar("timezone", { length: 64 }),
+  // Business / Professional
+  companyName: varchar("companyName", { length: 255 }),
+  companyWebsite: varchar("companyWebsite", { length: 512 }),
+  jobTitle: varchar("jobTitle", { length: 255 }),
+  professionalRole: varchar("professionalRole", { length: 128 }), // director, producer, writer, cinematographer, editor, vfx_artist, animator, student, hobbyist, other
+  experienceLevel: varchar("experienceLevel", { length: 32 }), // beginner, intermediate, advanced, professional, studio
+  industryType: varchar("industryType", { length: 128 }), // film, tv, advertising, music_video, social_media, education, corporate, gaming, other
+  teamSize: varchar("teamSize", { length: 32 }), // solo, 2-5, 6-20, 21-50, 50+
+  // Creative Profile
+  preferredGenres: json("preferredGenres"), // array of genres: action, drama, comedy, horror, sci-fi, etc.
+  primaryUseCase: varchar("primaryUseCase", { length: 128 }), // full_films, pre_production, storyboarding, trailers, music_videos, social_content, education, other
+  portfolioUrl: varchar("portfolioUrl", { length: 512 }),
+  socialLinks: json("socialLinks"), // { imdb, linkedin, instagram, youtube, vimeo, twitter }
+  // Discovery & Marketing
+  howDidYouHear: varchar("howDidYouHear", { length: 128 }), // google, social_media, friend, blog, producthunt, reddit, youtube, other
+  marketingOptIn: boolean("marketingOptIn").default(false),
+  onboardingCompleted: boolean("onboardingCompleted").default(false),
 });
 
 export type User = typeof users.$inferSelect;

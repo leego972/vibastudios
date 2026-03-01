@@ -56,6 +56,21 @@ export const appRouter = router({
         password: z.string().min(8).max(128),
         name: z.string().min(1).max(255),
         referralCode: z.string().optional(),
+        // Profile & Business
+        phone: z.string().max(32).optional(),
+        companyName: z.string().max(255).optional(),
+        companyWebsite: z.string().max(512).optional(),
+        jobTitle: z.string().max(255).optional(),
+        professionalRole: z.string().max(128).optional(),
+        experienceLevel: z.string().max(32).optional(),
+        industryType: z.string().max(128).optional(),
+        teamSize: z.string().max(32).optional(),
+        // Creative
+        preferredGenres: z.array(z.string()).optional(),
+        primaryUseCase: z.string().max(128).optional(),
+        portfolioUrl: z.string().max(512).optional(),
+        howDidYouHear: z.string().max(128).optional(),
+        marketingOptIn: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // Security: Fraud detection on registration
@@ -77,6 +92,19 @@ export const appRouter = router({
           email: input.email.toLowerCase(),
           name: input.name,
           passwordHash,
+          phone: input.phone,
+          companyName: input.companyName,
+          companyWebsite: input.companyWebsite,
+          jobTitle: input.jobTitle,
+          professionalRole: input.professionalRole,
+          experienceLevel: input.experienceLevel,
+          industryType: input.industryType,
+          teamSize: input.teamSize,
+          preferredGenres: input.preferredGenres,
+          primaryUseCase: input.primaryUseCase,
+          portfolioUrl: input.portfolioUrl,
+          howDidYouHear: input.howDidYouHear,
+          marketingOptIn: input.marketingOptIn,
         });
         if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create account" });
 

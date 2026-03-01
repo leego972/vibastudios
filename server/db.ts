@@ -89,7 +89,28 @@ export async function getUserById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function createEmailUser(data: { email: string; name: string; passwordHash: string }) {
+export async function createEmailUser(data: {
+  email: string;
+  name: string;
+  passwordHash: string;
+  phone?: string;
+  country?: string;
+  city?: string;
+  timezone?: string;
+  companyName?: string;
+  companyWebsite?: string;
+  jobTitle?: string;
+  professionalRole?: string;
+  experienceLevel?: string;
+  industryType?: string;
+  teamSize?: string;
+  preferredGenres?: string[];
+  primaryUseCase?: string;
+  portfolioUrl?: string;
+  socialLinks?: Record<string, string>;
+  howDidYouHear?: string;
+  marketingOptIn?: boolean;
+}) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const openId = `email_${data.email}`; // generate a stable openId from email
@@ -100,6 +121,24 @@ export async function createEmailUser(data: { email: string; name: string; passw
     passwordHash: data.passwordHash,
     loginMethod: "email",
     lastSignedIn: new Date(),
+    phone: data.phone || null,
+    country: data.country || null,
+    city: data.city || null,
+    timezone: data.timezone || null,
+    companyName: data.companyName || null,
+    companyWebsite: data.companyWebsite || null,
+    jobTitle: data.jobTitle || null,
+    professionalRole: data.professionalRole || null,
+    experienceLevel: data.experienceLevel || null,
+    industryType: data.industryType || null,
+    teamSize: data.teamSize || null,
+    preferredGenres: data.preferredGenres || null,
+    primaryUseCase: data.primaryUseCase || null,
+    portfolioUrl: data.portfolioUrl || null,
+    socialLinks: data.socialLinks || null,
+    howDidYouHear: data.howDidYouHear || null,
+    marketingOptIn: data.marketingOptIn ?? false,
+    onboardingCompleted: true,
   });
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   return result[0];
