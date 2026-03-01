@@ -217,3 +217,26 @@
     height: 2.5rem;
   }
 }
+
+/* ─── Leego Logo Green Glow Animation ─── */
+@keyframes leego-glow {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 8px rgba(34, 197, 94, 0.9))
+      drop-shadow(0 0 20px rgba(34, 197, 94, 0.7))
+      drop-shadow(0 0 40px rgba(34, 197, 94, 0.5))
+      drop-shadow(0 0 60px rgba(34, 197, 94, 0.3));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 12px rgba(34, 197, 94, 1))
+      drop-shadow(0 0 30px rgba(34, 197, 94, 0.85))
+      drop-shadow(0 0 55px rgba(34, 197, 94, 0.65))
+      drop-shadow(0 0 80px rgba(34, 197, 94, 0.4));
+  }
+}
+
+.leego-glow {
+  animation: leego-glow 2.5s ease-in-out infinite;
+  mix-blend-mode: lighten;
+}

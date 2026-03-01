@@ -232,15 +232,11 @@ function DashboardLayoutContent({
 
           <SidebarFooter className="p-3 space-y-2">
             {/* Leego branding */}
-            <div className="flex justify-center items-center py-1 opacity-60 hover:opacity-100 transition-opacity duration-300 group-data-[collapsible=icon]:px-0">
+            <div className="flex justify-center items-center py-1 group-data-[collapsible=icon]:px-0">
               <img
                 src="/leego-logo.png"
                 alt="Created by Leego"
-                className="h-10 w-auto object-contain group-data-[collapsible=icon]:h-7"
-                style={{
-                  mixBlendMode: "lighten",
-                  filter: "drop-shadow(0 0 6px rgba(34, 197, 94, 0.6)) drop-shadow(0 0 16px rgba(34, 197, 94, 0.4)) drop-shadow(0 0 30px rgba(34, 197, 94, 0.2))",
-                }}
+                className="h-12 w-auto object-contain group-data-[collapsible=icon]:h-8 leego-glow"
                 draggable={false}
               />
             </div>

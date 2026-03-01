@@ -181,7 +181,7 @@ export default function Movies() {
             </div>
           </div>
         )}
-        {/* Hover overlay with action buttons */}
+        {/* Hover overlay with action buttons - desktop only */}
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-end justify-center pb-3 gap-2">
           <Button
             size="sm"
@@ -236,19 +236,51 @@ export default function Movies() {
               </p>
             )}
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 sm:h-7 sm:w-7 text-destructive hover:text-destructive shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm("Delete this movie?")) {
-                deleteMutation.mutate({ id: movie.id });
-              }
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
-          </Button>
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Mobile-only action buttons (play, download, delete) */}
+            {(movie.fileUrl || movie.thumbnailUrl) && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 sm:hidden text-primary hover:text-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPlayer(movie.id);
+                }}
+              >
+                <Play className="h-4 w-4" />
+              </Button>
+            )}
+            {movie.fileUrl && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 sm:hidden text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const a = document.createElement("a");
+                  a.href = movie.fileUrl!;
+                  a.download = movie.title;
+                  a.click();
+                }}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm("Delete this movie?")) {
+                  deleteMutation.mutate({ id: movie.id });
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
           {movie.fileSize && (

@@ -129,15 +129,11 @@ export default function Login() {
         </div>
 
         {/* Right side on desktop / Below on mobile: Leego logo */}
-        <div className="flex-shrink-0 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-300">
+        <div className="flex-shrink-0 flex items-center justify-center">
           <img
             src="/leego-logo.png"
             alt="Created by Leego"
-            className="h-28 sm:h-32 lg:h-40 w-auto object-contain"
-            style={{
-              mixBlendMode: "lighten",
-              filter: "drop-shadow(0 0 8px rgba(34, 197, 94, 0.6)) drop-shadow(0 0 20px rgba(34, 197, 94, 0.4)) drop-shadow(0 0 40px rgba(34, 197, 94, 0.2))",
-            }}
+            className="h-28 sm:h-32 lg:h-40 w-auto object-contain leego-glow"
             draggable={false}
           />
         </div>
